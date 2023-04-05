@@ -4,3 +4,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+
+int main(){
+    return 1;
+}

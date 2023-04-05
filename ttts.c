@@ -5,3 +5,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 //game Server
+
+int main(){
+    return 1;
+}
