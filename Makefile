@@ -10,4 +10,4 @@ ttt: ttt.c
 	$(CC) $(CFLAGS) $< -o $@
 
 clean:
-	rm -rf $(PROGRAMS) *.o *.a *.dylib *.dSYM
+	rm -rf $(PROGRAMS) *.o *.a *.dylib *.dSYM	
