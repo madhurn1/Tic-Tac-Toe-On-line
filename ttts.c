@@ -139,7 +139,7 @@ void* clientHandle(void * arg){
             playerflag = 2;
         }
         pthread_mutex_unlock(&player_list_lock);
-        if(playerflag=2){
+        if(playerflag==2){
         //both players ready
         break;
         }

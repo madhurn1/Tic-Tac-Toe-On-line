@@ -9,16 +9,16 @@ The ttt program will connect to the server (ttts), display the current state of 
 The client program (ttt.c) should connect to the server and display the current state of the board to the player. It should then prompt the player to make a move and send this move to the server. The client program should also listen for incoming messages from the server, including updates to the board state and notifications of game outcomes.
 
 
-Parse the command line arguments for the server's domain name and port number.
-Create a socket and connect to the server.
-Send a PLAY message with the player's name.
-Wait for a BEGN message from the server, indicating the player's role and the name of their opponent.
-Display the current state of the game board to the player.
-Wait for MOVE messages from the server and update the game board accordingly.
-Prompt the player for their move and send a MOVE message to the server.
+1.Parse the command line arguments for the server's domain name and port number.DONE 
+2. Create a socket and connect to the server.
+3.Send a PLAY message with the player's name.
+4.Wait for a BEGN message from the server, indicating the player's role and the name of their opponent.
+5.Display the current state of the game board to the player.
+6.Wait for MOVE messages from the server and update the game board accordingly.
+7.Prompt the player for their move and send a MOVE message to the server.
 Repeat steps 6-7 until the game is over.
-Display the outcome and reason for the game ending.
-Close the connection and exit the program.
+8.Display the outcome and reason for the game ending.
+9.Close the connection and exit the program.
 
 
 
@@ -73,3 +73,27 @@ OVER outcome reason: The server informs the clients about the outcome of the gam
 
 Message Format
 Messages will be broken into fields, where each field is separated by a vertical bar. The first field will always be a four-character code representing the message type. The second field will give the length of the remaining message in bytes, represented as a string containing a decimal integer in the range 0-255. Subsequent fields will be variable-length strings and will contain the relevant information for the message type. Messages will always end with a vertical bar, which will be used to detect improperly formatted messages.
+
+
+
+void startGame(Player* p1, Player* p2) {
+    // randomly select X and O
+    Player* x_player;
+    Player* o_player;
+    int r = rand() % 2;  // generate random number 0 or 1
+    if (r == 0) {
+        x_player = p1;
+        o_player = p2;
+    } else {
+        x_player = p2;
+        o_player = p1;
+    }
+
+    // send BEGN message to players
+    char msg1[MSG_SIZE];
+    snprintf(msg1, MSG_SIZE, "BEGN:X,%s", o_player->name);
+    send_msg(x_player->sock, BEGN, msg1);
+    char msg2[MSG_SIZE];
+    snprintf(msg2, MSG_SIZE, "BEGN:O,%s", x_player->name);
+    send_msg(o_player->sock, BEGN, msg2);
+}
