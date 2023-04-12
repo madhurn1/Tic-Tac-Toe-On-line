@@ -10,8 +10,8 @@ The client program (ttt.c) should connect to the server and display the current 
 
 
 1.Parse the command line arguments for the server's domain name and port number.DONE 
-2. Create a socket and connect to the server.
-3.Send a PLAY message with the player's name.
+2. Create a socket and connect to the server.DONE 
+3.Send a PLAY message with the player's name. WORK ON
 4.Wait for a BEGN message from the server, indicating the player's role and the name of their opponent.
 5.Display the current state of the game board to the player.
 6.Wait for MOVE messages from the server and update the game board accordingly.
