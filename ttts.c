@@ -24,6 +24,7 @@ pthread_mutex_t player_list_lock = PTHREAD_MUTEX_INITIALIZER;
 typedef struct PlayerNode {
     char pName[NAME_SIZE];
     struct PlayerNode* next;
+    char type;
 } PlayerNode;
 
 
@@ -149,6 +150,12 @@ void* clientHandle(void * arg){
     pthread_mutex_lock(&player_list_lock);
     PlayerNode* p1 = listOfPlayers;
     PlayerNode* p2 = listOfPlayers->next;
+    int p = rand() % 2; 
+    if(p==0)
+    p1->type='o';
+    else{
+    p2->type='x';
+    }
     strncpy(Player1, p1->pName, NAME_SIZE);
     strncpy(Player2, p2->pName, NAME_SIZE);
     listOfPlayers = listOfPlayers->next->next;

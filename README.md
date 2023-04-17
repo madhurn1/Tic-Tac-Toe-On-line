@@ -24,17 +24,17 @@ Repeat steps 6-7 until the game is over.
 
 ttts (Server)
 The ttts program will pair up players, choose who will go first, receive commands from the players, track the state of the Tic-Tac-Toe grid, ensure that invalid moves are rejected, and determine when the game has ended.
-The server program (ttts.c) should listen for incoming connections and create a separate thread for each player. These threads will handle incoming messages from the players and send outgoing messages to the players. The server program should also keep track of the state of the game, including the positions of the X and O markers on the board, whose turn it is, and whether the game has ended.
+The server program (ttts.c) should listen for incoming connections and create a separate thread for each player. These threads will handle incoming messages from the players and send outgoing messages to the players. The server program should also keep track of the state of the game, including the positions of the qX and O markers on the board, whose turn it is, and whether the game has ended.
 
 
 
 For the server (ttts.c), here are the basic steps:
-1.Create a socket and bind it to a port number.
-2.Listen for incoming connections from clients.
-3.When a client connects, accept the connection and create a new thread to handle the client.
-4.In the client thread, wait for the PLAY message from the client, which includes the player's name.
-5.Add the player to a waiting list until another player connects.
-6.Once two players are waiting, randomly select one to be X and the other to be O.
+1.Create a socket and bind it to a port number.DONE
+2.Listen for incoming connections from clients.DONE
+3.When a client connects, accept the connection and create a new thread to handle the client.DONE
+4.In the client thread, wait for the PLAY message from the client, which includes the player's name.DONE
+5.Add the player to a waiting list until another player connects.DONE
+6.Once two players are waiting, randomly select one to be X and the other to be O.DONE
 7.Send a BEGN message to each player, indicating their role and the name of their opponent.
 8.Wait for MOVE messages from the players and update the game board accordingly.
 9.Check for win/draw conditions after each move and send the appropriate message to the players.

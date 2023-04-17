@@ -54,7 +54,7 @@ int main(int argc, char *argv[]){
   if (sockFD < 0) 
     exit(1);
 //**********************************************************************************
-    char playerName[NAME_SIZE];
+    // char playerName[NAME_SIZE];
     //work needs to be done from here... message 3 confusion. 
 
 
