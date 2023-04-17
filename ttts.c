@@ -27,6 +27,17 @@ typedef struct PlayerNode {
     char type;
 } PlayerNode;
 
+volatile int active = 1;
+
+void handler(int signum){
+active = 0;
+}
+
+struct connection_data {
+struct sockaddr_storage addr;
+socklen_t addr_len;
+int fd;
+};
 
 PlayerNode* listOfPlayers = NULL;
 
@@ -34,20 +45,24 @@ void* clientHandle(void * arg);
 void send_msg(int sock, char *type, char *msg);
 int checkName(char * name);
 void addPlayer(char*name);
+void install_handlers(sigset_t *mask);
 
 
 int main(int argc, char *argv[]){
     //The argument to ttts is the port number it will use for connection requests.
+    sigset_t mask;
+
     if (argc != 2) {
         printf("Usage: %s <host> <port>\n", argv[0]);
         exit(1);
     }
     int portNum = atoi(argv[1]);
 
-    // int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    install_handlers(&mask);
 //**********************************************************************************************
     struct addrinfo hint, *info_list, *info;
     int error, sock;
+    struct connection_data *con;
 
     // initialize hints
     memset(&hint, 0, sizeof(struct addrinfo));
@@ -90,23 +105,53 @@ int main(int argc, char *argv[]){
     }
 //When a client connects, accept the connection and create a new thread to handle the client.
 
-    while(1){
+    while(active){
         //holds the address information of the client that connects to the server.
-        struct sockaddr_storage client_addr;
+        con = (struct connection_data *)malloc(sizeof(struct connection_data));
+        // struct sockaddr_storage client_addr;
+        con->addr_len = sizeof(struct sockaddr_storage);
+        
         //determine the size of the buffer where the client's address information will be stored.
-        socklen_t client_addrlen = sizeof(client_addr); 
+        // socklen_t client_addrlen = sizeof(client_addr); 
+
         /*is a system call that waits for a connection request from a client and accepts 
         it, returning a new socket file descriptor that is used to communicate with the client.
         */
-        int client_sock = accept(sock, (struct sockaddr*)&client_addr, &client_addrlen);
-        if (client_sock == -1) {
+        // int client_sock = accept(sock, (struct sockaddr*)&client_addr, &client_addrlen);
+        con->fd = accept(sock,(struct sockaddr *)&con->addr, &con->addr_len);
+
+        if (con->fd == -1) {
             perror("accept");
+            free(con);
             continue;
         }
+        error = pthread_sigmask(SIG_BLOCK, &mask, NULL);
+        if (error != 0) {
+        fprintf(stderr, "sigmask: %s\n", strerror(error));
+        exit(EXIT_FAILURE);
+        }
+    
         pthread_t tid;
-        pthread_create(&tid, NULL, clientHandle, &client_sock);
-    }   
+        error=pthread_create(&tid, NULL, clientHandle, &con->fd);
+        if (error != 0) {
+        fprintf(stderr, "pthread_create: %s\n", strerror(error));
+        close(con->fd);
+        free(con);
+        continue;
+        }
 
+        // automatically clean up child threads once they terminate
+        pthread_detach(tid);
+
+        // unblock handled signals
+        error = pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
+        if (error != 0) {
+        fprintf(stderr, "sigmask: %s\n", strerror(error));
+        exit(EXIT_FAILURE);
+        }
+    }
+    //shutting down
+    close(sock);   
     return 1;
 }
 //pointer to the integer value that represents the client socket file descriptor.
@@ -209,4 +254,15 @@ void addPlayer(char*name){
         temp->next=node_p; 
     }
     pthread_mutex_unlock(&player_list_lock);
+}
+void install_handlers(sigset_t *mask){
+    struct sigaction act;
+    act.sa_handler = handler;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask);
+    sigaction(SIGINT, &act, NULL);
+    sigaction(SIGTERM, &act, NULL);
+    sigemptyset(mask);
+    sigaddset(mask, SIGINT);
+    sigaddset(mask, SIGTERM);
 }
