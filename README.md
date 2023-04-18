@@ -35,6 +35,8 @@ For the server (ttts.c), here are the basic steps:
 4.In the client thread, wait for the PLAY message from the client, which includes the player's name.DONE
 5.Add the player to a waiting list until another player connects.DONE
 6.Once two players are waiting, randomly select one to be X and the other to be O.DONE
+
+
 7.Send a BEGN message to each player, indicating their role and the name of their opponent.
 8.Wait for MOVE messages from the players and update the game board accordingly.
 9.Check for win/draw conditions after each move and send the appropriate message to the players.
@@ -74,7 +76,7 @@ OVER outcome reason: The server informs the clients about the outcome of the gam
 Message Format
 Messages will be broken into fields, where each field is separated by a vertical bar. The first field will always be a four-character code representing the message type. The second field will give the length of the remaining message in bytes, represented as a string containing a decimal integer in the range 0-255. Subsequent fields will be variable-length strings and will contain the relevant information for the message type. Messages will always end with a vertical bar, which will be used to detect improperly formatted messages.
 
-
+12345 localhost
 
 void startGame(Player* p1, Player* p2) {
     // randomly select X and O

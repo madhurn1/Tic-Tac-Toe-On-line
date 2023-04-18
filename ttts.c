@@ -57,6 +57,7 @@ int main(int argc, char *argv[]){
         exit(1);
     }
     int portNum = atoi(argv[1]);
+    printf("%d\n",portNum);
 
     install_handlers(&mask);
 //**********************************************************************************************
@@ -106,6 +107,7 @@ int main(int argc, char *argv[]){
 //When a client connects, accept the connection and create a new thread to handle the client.
 
     while(active){
+
         //holds the address information of the client that connects to the server.
         con = (struct connection_data *)malloc(sizeof(struct connection_data));
         // struct sockaddr_storage client_addr;
@@ -119,7 +121,7 @@ int main(int argc, char *argv[]){
         */
         // int client_sock = accept(sock, (struct sockaddr*)&client_addr, &client_addrlen);
         con->fd = accept(sock,(struct sockaddr *)&con->addr, &con->addr_len);
-
+        
         if (con->fd == -1) {
             perror("accept");
             free(con);
@@ -139,7 +141,7 @@ int main(int argc, char *argv[]){
         free(con);
         continue;
         }
-
+    
         // automatically clean up child threads once they terminate
         pthread_detach(tid);
 
@@ -195,12 +197,7 @@ void* clientHandle(void * arg){
     pthread_mutex_lock(&player_list_lock);
     PlayerNode* p1 = listOfPlayers;
     PlayerNode* p2 = listOfPlayers->next;
-    int p = rand() % 2; 
-    if(p==0)
-    p1->type='o';
-    else{
-    p2->type='x';
-    }
+   
     strncpy(Player1, p1->pName, NAME_SIZE);
     strncpy(Player2, p2->pName, NAME_SIZE);
     listOfPlayers = listOfPlayers->next->next;
@@ -208,9 +205,16 @@ void* clientHandle(void * arg){
     free(p2);
     pthread_mutex_unlock(&player_list_lock);
     
+    //random role assignment
+    int p = rand() % 2; 
+    if(p==0)
+    p1->type='o';
+    else{
+    p2->type='x';
+    }
     //game can now be started
-    //randomly need to assign each player either an O and X
 
+    
     close(client_sock);
     pthread_exit(NULL);
 }
