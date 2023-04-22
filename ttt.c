@@ -6,22 +6,32 @@
 #include <netdb.h>
 #include <string.h>
 #include <sys/select.h>
-#include "protocol.c"
+// #include "protocol.c"
 #include <errno.h>
 
 #define GRIDSIZE 3
-#define BUFLEN 256
+#define FIELDLEN 256
 
+typedef struct msg
+{
+    char buf[FIELDLEN];
+    char code[5];
+    char fields[5][FIELDLEN];
+    int len;
+    int num_fields;
+} msg_t;
+
+int p_recv(int sockFD, msg_t *msg);
+int field_count(char *);
 int main(int argc, char *argv[])
 {
-
     if (argc != 3)
     {
         printf("Usage: %s <host> <port>\n", argv[0]);
         exit(1);
     }
     // The arguments to ttt are the domain name and port number of the desired service.
-    int bytes;
+    // int bytes;
     char *domain = argv[1];
     int portNum = atoi(argv[2]);
     char portString[6];
@@ -70,69 +80,136 @@ int main(int argc, char *argv[])
     if (sockFD < 0)
         exit(1);
 
-    char buffer[BUFLEN];
-    char command[5];
     //**********************************************************************************
 
-    while (1)
+    char name[FIELDLEN];
+    char buf[FIELDLEN];
+    int bytes;
+    printf("First, what is your name?\n");
+    bytes = read(STDIN_FILENO, name, FIELDLEN);
+    name[bytes - 1] = '\0';
+    bytes = snprintf(buf, FIELDLEN, "PLAY|%d|%s|\n", bytes, name);
+    write(sockFD, buf, bytes);
+
+    struct msg pass;
+    pass.len = 0;
+    pass.num_fields = 0;
+    printf("%d\n", p_recv(sockFD, &pass));
+    pass.num_fields = 0;
+    printf("%d\n", p_recv(sockFD, &pass));
+    pass.num_fields = 0;
+    printf("%d\n", p_recv(sockFD, &pass));
+    close(sockFD);
+    return 0;
+}
+
+int p_recv(int sockFD, msg_t *msg)
+{
+    int msgend = 0;
+    int leftover_length = 0;
+    int fieldcount;
+    int size;
+    int bytes_read = read(sockFD, msg->buf + msg->len, FIELDLEN - msg->len);
+    printf("BUF: %s\n", msg->buf);
+
+    if (bytes_read == -1)
     {
-        // Read from fd and print to stdout
-        bytes = read(sockFD, buffer, BUFLEN);
-        if (bytes == -1)
-        {
-            perror("read");
-        }
-        else if (bytes == 0)
-            break;
-
-        else
-        {
-            strncpy(command, buffer, 4);
-            command[4] = '\0';
-        }
-
-        // Read from stdin and write to fd
-        bytes = read(STDIN_FILENO, buffer, BUFLEN);
-        if (bytes == -1)
-        {
-            // Handle read error
-        }
-        else if (bytes == 0)
-            // stdin has been closed
-            break;
-
-        else
-        {
-
-            strncpy(command, buffer, 4);
-            command[4] = '\0';
-            if (strcmp(command, "PLAY") == 0)
-            {
-                play(sockFD, buffer);
-                write(STDOUT_FILENO, buffer, bytes);
-            }
-        }
+        perror("read");
+        return -1;
     }
 
-    /*
-        while ((bytes = read(STDIN_FILENO, buf, BUFLEN)) > 0)
-        {
+    else if (bytes_read == 0 && msg->len == 0)
+    {
+        printf("poo\n");
+        // connection closed
+        return 0;
+    }
 
-            strncpy(command, buf, 4);
-            command[4] = '\0';
+    msg->len += bytes_read;
+
+    printf("%d %d\n", msg->len, bytes_read);
+    // check for complete message
+    for (int i = msgend; i < msg->len; i++)
+    {
+        if (msg->buf[i] == '|')
+        {
+            if (msg->num_fields == 0)
             {
-                if (strcmp(command, "PLAY") == 0)
+                // first field is the code
+                if (i - msgend != 4)
                 {
-                    PLAY player;
-                    sscanf(buf, "%4s|%d|%[^|]|", command, &player.size, player.name);
-                    play(sockFD, player.size, player.name);
-                    return 0;
+                    fprintf(stderr, "error: invalid code length\n");
+                    return -1;
                 }
+                strncpy(msg->code, msg->buf + msgend, 4);
+                msg->code[4] = '\0';
+                fieldcount = field_count(msg->code);
+                printf("CODE: %s, FIELDS: %d\n", msg->code, fieldcount);
             }
-            // work needs to be done from here... message 3 confusion.
+            else if (msg->num_fields == 1)
+            {
+                // second field is the message length
+                // if (read_field(buf, msgend, i, size_str) == -1)                        return -1;
+                char size_str[FIELDLEN];
+                strncpy(size_str, msg->buf + msgend, i - msgend);
+                size_str[i - msgend] = '\0';
+                size = atoi(size_str);
+
+                if (size < 0 || size > FIELDLEN)
+                {
+                    fprintf(stderr, "error: invalid message size\n");
+                    return -1;
+                }
+
+                printf("SIZE: %d\n", size);
+            }
+            else
+            {
+                // subsequent fields are variable-length strings
+                // if (read_field(buf, msgend, i, field) == -1)                        return -1;
+                char field[FIELDLEN];
+                strncpy(field, msg->buf + msgend, i - msgend);
+                field[i - msgend] = '\0';
+                strcpy(msg->fields[msg->num_fields - 2], field);
+                printf("FIELD: %s\n", field);
+            }
+            msgend = i + 1;
+            msg->num_fields++;
         }
-    */
-    close(sockFD);
+
+        if (fieldcount != 0 && msg->num_fields == fieldcount)
+            break;
+    }
+
+    printf("LEN: %d\n", msg->len);
+    printf("FIELDS: %d\n", msg->num_fields);
+
+    // check for improperly formatted message
+    if (msg->buf[msg->len - 1] != '|')
+    {
+        fprintf(stderr, "error: message not terminated with '|'\n");
+        return -1;
+    }
+
+    // there's more data to come, so move leftover data to the front of the buffer
+
+    leftover_length = msg->len - msgend;
+    memmove(msg->buf, msg->buf + msgend, leftover_length);
+    msg->buf[leftover_length] = '\0';
+    msg->len = leftover_length;
+
+    return 1;
+}
+
+int field_count(char *type)
+{
+    if (strcmp(type, "WAIT") == 0)
+        return 2;
+    if (strcmp(type, "BEGN") == 0 || strcmp(type, "INVL") == 0 || strcmp(type, "DRAW") == 0 || strcmp(type, "OVER") == 0)
+        return 3;
+    if (strcmp(type, "MOVD"))
+        return 4;
+
     return 0;
 }
 

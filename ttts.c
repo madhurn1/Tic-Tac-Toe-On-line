@@ -12,21 +12,29 @@
 
 // game Server
 #define QUEUE_SIZE 8
-#define NAME_SIZE 256
-#define INVL "INVALID_COMMAND"
-#define WAIT "Wait"
-#define PLAY "name goes here"
-#define BEGN "RANDOMLY ASSIGNED HERE"
+#define FIELDLEN 256
 
 // global mutex to ensure thread-safe access to the list of player names
 pthread_mutex_t player_list_lock = PTHREAD_MUTEX_INITIALIZER;
 
 typedef struct PlayerNode
 {
-    char pName[NAME_SIZE];
+    char pName[FIELDLEN];
     struct PlayerNode *next;
     char type;
 } PlayerNode;
+
+typedef struct msg
+{
+    char buf[FIELDLEN];
+    char code[5];
+    char fields[5][FIELDLEN];
+    int len;
+    int num_fields;
+} msg_t;
+
+int p_recv(int sockFD, msg_t *msg);
+int field_count(char *);
 
 volatile int active = 1;
 
@@ -61,8 +69,6 @@ int main(int argc, char *argv[])
         exit(1);
     }
     int portNum = atoi(argv[1]);
-    printf("%d\n",portNum);
-
     install_handlers(&mask);
     //**********************************************************************************************
     struct addrinfo hint, *info_list, *info;
@@ -116,15 +122,9 @@ int main(int argc, char *argv[])
     }
     // When a client connects, accept the connection and create a new thread to handle the client.
 
-<<<<<<< HEAD
-    while(active){
-
-        //holds the address information of the client that connects to the server.
-=======
     while (active)
     {
         // holds the address information of the client that connects to the server.
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
         con = (struct connection_data *)malloc(sizeof(struct connection_data));
         // struct sockaddr_storage client_addr;
         con->addr_len = sizeof(struct sockaddr_storage);
@@ -136,20 +136,15 @@ int main(int argc, char *argv[])
         it, returning a new socket file descriptor that is used to communicate with the client.
         */
         // int client_sock = accept(sock, (struct sockaddr*)&client_addr, &client_addrlen);
-<<<<<<< HEAD
-        con->fd = accept(sock,(struct sockaddr *)&con->addr, &con->addr_len);
-        
-        if (con->fd == -1) {
-=======
         con->fd = accept(sock, (struct sockaddr *)&con->addr, &con->addr_len);
 
         if (con->fd == -1)
         {
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
             perror("accept");
             free(con);
             continue;
         }
+        printf("Connected\n");
         error = pthread_sigmask(SIG_BLOCK, &mask, NULL);
         if (error != 0)
         {
@@ -166,7 +161,7 @@ int main(int argc, char *argv[])
             free(con);
             continue;
         }
-    
+
         // automatically clean up child threads once they terminate
         pthread_detach(tid);
 
@@ -186,9 +181,9 @@ int main(int argc, char *argv[])
 void *clientHandle(void *arg)
 {
     int client_sock = *(int *)arg;
-    char playerName[NAME_SIZE];
-    char Player1[NAME_SIZE];
-    char Player2[NAME_SIZE];
+    char playerName[FIELDLEN];
+    char Player1[FIELDLEN];
+    char Player2[FIELDLEN];
     int playerflag = 0;
 
     // wait for "PLAY" message from client
@@ -201,14 +196,14 @@ void *clientHandle(void *arg)
     // checking to seee if player name is inuse
     if (checkName(playerName) == 1)
     {
-        send_msg(client_sock, INVL, "Name currently in use");
+        send_msg(client_sock, "INVL", "Name currently in use");
         close(client_sock);
         return NULL;
     }
     // adding player to linked list structure.
     addPlayer(playerName);
 
-    send_msg(client_sock, WAIT, NULL); // not sure for currect spot
+    send_msg(client_sock, "WAIT", NULL); // not sure for currect spot
 
     while (1)
     {
@@ -227,11 +222,6 @@ void *clientHandle(void *arg)
     }
 
     pthread_mutex_lock(&player_list_lock);
-<<<<<<< HEAD
-    PlayerNode* p1 = listOfPlayers;
-    PlayerNode* p2 = listOfPlayers->next;
-   
-=======
     PlayerNode *p1 = listOfPlayers;
     PlayerNode *p2 = listOfPlayers->next;
     int p = rand() % 2;
@@ -241,30 +231,14 @@ void *clientHandle(void *arg)
     {
         p2->type = 'x';
     }
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
-    strncpy(Player1, p1->pName, NAME_SIZE);
-    strncpy(Player2, p2->pName, NAME_SIZE);
+    strncpy(Player1, p1->pName, FIELDLEN);
+    strncpy(Player2, p2->pName, FIELDLEN);
     listOfPlayers = listOfPlayers->next->next;
     free(p1);
     free(p2);
     pthread_mutex_unlock(&player_list_lock);
-<<<<<<< HEAD
-    
-    //random role assignment
-    int p = rand() % 2; 
-    if(p==0)
-    p1->type='o';
-    else{
-    p2->type='x';
-    }
-    //game can now be started
-=======
-
     // game can now be started
-    // randomly need to assign each player either an O and X
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
 
-    
     close(client_sock);
     pthread_exit(NULL);
 }
@@ -299,7 +273,7 @@ void addPlayer(char *name)
 {
     // linked list
     PlayerNode *node_p = (PlayerNode *)malloc(sizeof(PlayerNode)); // this needs to be freed som
-    strncpy(node_p->pName, name, NAME_SIZE);
+    strncpy(node_p->pName, name, FIELDLEN);
     node_p->next = NULL;
     pthread_mutex_lock(&player_list_lock);
     if (listOfPlayers == NULL)
@@ -317,6 +291,7 @@ void addPlayer(char *name)
     }
     pthread_mutex_unlock(&player_list_lock);
 }
+
 void install_handlers(sigset_t *mask)
 {
     struct sigaction act;
@@ -328,4 +303,114 @@ void install_handlers(sigset_t *mask)
     sigemptyset(mask);
     sigaddset(mask, SIGINT);
     sigaddset(mask, SIGTERM);
+}
+
+int p_recv(int sockFD, msg_t *msg)
+{
+    int msgend = 0;
+    int leftover_length = 0;
+    int fieldcount;
+    int size;
+    int bytes_read = read(sockFD, msg->buf + msg->len, FIELDLEN - msg->len);
+    printf("BUF: %s\n", msg->buf);
+
+    if (bytes_read == -1)
+    {
+        perror("read");
+        return -1;
+    }
+
+    else if (bytes_read == 0 && msg->len == 0)
+    {
+        printf("poo\n");
+        // connection closed
+        return 0;
+    }
+
+    msg->len += bytes_read;
+
+    printf("%d %d\n", msg->len, bytes_read);
+    // check for complete message
+    for (int i = msgend; i < msg->len; i++)
+    {
+        if (msg->buf[i] == '|')
+        {
+            if (msg->num_fields == 0)
+            {
+                // first field is the code
+                if (i - msgend != 4)
+                {
+                    fprintf(stderr, "error: invalid code length\n");
+                    return -1;
+                }
+                strncpy(msg->code, msg->buf + msgend, 4);
+                msg->code[4] = '\0';
+                fieldcount = field_count(msg->code);
+                printf("CODE: %s, FIELDS: %d\n", msg->code, fieldcount);
+            }
+            else if (msg->num_fields == 1)
+            {
+                // second field is the message length
+                // if (read_field(buf, msgend, i, size_str) == -1)                        return -1;
+                char size_str[FIELDLEN];
+                strncpy(size_str, msg->buf + msgend, i - msgend);
+                size_str[i - msgend] = '\0';
+                size = atoi(size_str);
+
+                if (size < 0 || size > FIELDLEN)
+                {
+                    fprintf(stderr, "error: invalid message size\n");
+                    return -1;
+                }
+
+                printf("SIZE: %d\n", size);
+            }
+            else
+            {
+                // subsequent fields are variable-length strings
+                // if (read_field(buf, msgend, i, field) == -1)                        return -1;
+                char field[FIELDLEN];
+                strncpy(field, msg->buf + msgend, i - msgend);
+                field[i - msgend] = '\0';
+                strcpy(msg->fields[msg->num_fields - 2], field);
+                printf("FIELD: %s\n", field);
+            }
+            msgend = i + 1;
+            msg->num_fields++;
+        }
+
+        if (fieldcount != 0 && msg->num_fields == fieldcount)
+            break;
+    }
+
+    printf("LEN: %d\n", msg->len);
+    printf("FIELDS: %d\n", msg->num_fields);
+
+    // check for improperly formatted message
+    if (msg->buf[msg->len - 1] != '|')
+    {
+        fprintf(stderr, "error: message not terminated with '|'\n");
+        return -1;
+    }
+
+    // there's more data to come, so move leftover data to the front of the buffer
+
+    leftover_length = msg->len - msgend;
+    memmove(msg->buf, msg->buf + msgend, leftover_length);
+    msg->buf[leftover_length] = '\0';
+    msg->len = leftover_length;
+
+    return 1;
+}
+
+int field_count(char *type)
+{
+    if (strcmp(type, "WAIT") == 0)
+        return 2;
+    if (strcmp(type, "BEGN") == 0 || strcmp(type, "INVL") == 0 || strcmp(type, "DRAW") == 0 || strcmp(type, "OVER") == 0)
+        return 3;
+    if (strcmp(type, "MOVD"))
+        return 4;
+
+    return 0;
 }

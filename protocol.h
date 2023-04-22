@@ -7,7 +7,6 @@
 typedef struct
 {
     int size;
-    char type = "PLAY";
     char name[FIELD];
 } PLAY;
 

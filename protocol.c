@@ -1,6 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/socket.h>
 #include "protocol.h"
 
 int play(int, char *);
@@ -9,6 +10,11 @@ void moved(int, int, char, int, int, char *);
 void invalid(int, int, char *);
 void draw(int, int, char);
 void over(int, int, char, char *);
+
+int main()
+{
+    return 1;
+}
 
 int play(int sockfd, char *buffer)
 {
@@ -22,6 +28,12 @@ int play(int sockfd, char *buffer)
         return 1;
 
     return 0;
+}
+
+void wait(int sockfd)
+{
+    char *response = "WAIT|0|";
+    send(sockfd, &response, sizeof(response), 0);
 }
 
 void begin(int sockfd, int size, char role, char *name)
