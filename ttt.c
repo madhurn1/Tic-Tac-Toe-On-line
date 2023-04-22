@@ -11,6 +11,7 @@
 
 #define GRIDSIZE 3
 #define BUFLEN 256
+char board[GRIDSIZE][GRIDSIZE];
 
 int main(int argc, char *argv[])
 {
@@ -72,11 +73,18 @@ int main(int argc, char *argv[])
 
     char buffer[BUFLEN];
     char command[5];
+
+    // for (int i = 0; i < GRIDSIZE; i++) {
+    //     for (int j = 0; j < GRIDSIZE; j++) {
+    //         board[i][j] = '-';
+    //     }
+    // }
+
     //**********************************************************************************
 
     while (1)
     {
-        // Read from fd and print to stdout
+        // Read from fd and print to stdoutx
         bytes = read(sockFD, buffer, BUFLEN);
         if (bytes == -1)
         {
@@ -92,18 +100,17 @@ int main(int argc, char *argv[])
         }
 
         // Read from stdin and write to fd
+        //reading the rest of the actual name
         bytes = read(STDIN_FILENO, buffer, BUFLEN);
         if (bytes == -1)
         {
-            // Handle read error
+            // Handle read error        
         }
         else if (bytes == 0)
             // stdin has been closed
             break;
-
         else
         {
-
             strncpy(command, buffer, 4);
             command[4] = '\0';
             if (strcmp(command, "PLAY") == 0)
@@ -154,4 +161,63 @@ void printGrid(char grid[GRIDSIZE][GRIDSIZE])
             printf("---|---|---\n");
         }
     }
+}
+
+void check_game_end(){
+    // check rows
+    for (int i = 0; i < GRIDSIZE; i++)
+    {
+        if (board[i][0] != '-' && board[i][0] == board[i][1] && board[i][1] == board[i][2])
+        {
+            printf("Game over. Winner: %c\n", board[i][0]);
+            exit(0);
+        }
+    }
+
+    // check columns
+    for (int j = 0; j < GRIDSIZE; j++)
+    {
+        if (board[0][j] != '-' && board[0][j] == board[1][j] && board[1][j] == board[2][j])
+        {
+            printf("Game over. Winner: %c\n", board[0][j]);
+            exit(0);
+        }
+    }
+    // check diagonals
+    if (board[0][0] != '-' && board[0][0] == board[1][1] && board[1][1] == board[2][2])
+    {
+        printf("Game over. Winner: %c\n", board[0][0]);
+        exit(0);
+    }
+    if (board[0][2] != '-' && board[0][2] == board[1][1] && board[1][1] == board[2][0])
+    {
+        printf("Game over. Winner: %c\n", board[0][2]);
+        exit(0);
+    }
+
+    // check for tie
+    int count = 0;
+
+    for (int i = 0; i < GRIDSIZE; i++)
+    {
+        for (int j = 0; j < GRIDSIZE; j++)
+        {
+            if (board[i][j] != '-')
+            {
+                count++;
+            }
+        }
+    }
+    if (count == GRIDSIZE * GRIDSIZE)
+    {
+        printf("Game over. Tie.\n");
+        exit(0);
+    }
+}           
+
+// Update the game board based on a move
+void update_board(char role, int row, int col)
+{
+    board[row][col] = role;
+    printGrid(board);
 }

@@ -9,6 +9,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <pthread.h>
+// #include "protocol.c"
 
 // game Server
 #define QUEUE_SIZE 8
@@ -116,15 +117,9 @@ int main(int argc, char *argv[])
     }
     // When a client connects, accept the connection and create a new thread to handle the client.
 
-<<<<<<< HEAD
-    while(active){
-
-        //holds the address information of the client that connects to the server.
-=======
     while (active)
     {
         // holds the address information of the client that connects to the server.
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
         con = (struct connection_data *)malloc(sizeof(struct connection_data));
         // struct sockaddr_storage client_addr;
         con->addr_len = sizeof(struct sockaddr_storage);
@@ -136,16 +131,10 @@ int main(int argc, char *argv[])
         it, returning a new socket file descriptor that is used to communicate with the client.
         */
         // int client_sock = accept(sock, (struct sockaddr*)&client_addr, &client_addrlen);
-<<<<<<< HEAD
-        con->fd = accept(sock,(struct sockaddr *)&con->addr, &con->addr_len);
-        
-        if (con->fd == -1) {
-=======
         con->fd = accept(sock, (struct sockaddr *)&con->addr, &con->addr_len);
 
         if (con->fd == -1)
         {
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
             perror("accept");
             free(con);
             continue;
@@ -227,11 +216,6 @@ void *clientHandle(void *arg)
     }
 
     pthread_mutex_lock(&player_list_lock);
-<<<<<<< HEAD
-    PlayerNode* p1 = listOfPlayers;
-    PlayerNode* p2 = listOfPlayers->next;
-   
-=======
     PlayerNode *p1 = listOfPlayers;
     PlayerNode *p2 = listOfPlayers->next;
     int p = rand() % 2;
@@ -241,36 +225,23 @@ void *clientHandle(void *arg)
     {
         p2->type = 'x';
     }
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
     strncpy(Player1, p1->pName, NAME_SIZE);
     strncpy(Player2, p2->pName, NAME_SIZE);
     listOfPlayers = listOfPlayers->next->next;
     free(p1);
     free(p2);
     pthread_mutex_unlock(&player_list_lock);
-<<<<<<< HEAD
-    
-    //random role assignment
-    int p = rand() % 2; 
-    if(p==0)
-    p1->type='o';
-    else{
-    p2->type='x';
-    }
-    //game can now be started
-=======
 
     // game can now be started
     // randomly need to assign each player either an O and X
->>>>>>> 809cf60670b8c67cf7422c8467ae4de6c296fd4e
 
+    begin(client_sock, sizeof());
     
     close(client_sock);
     pthread_exit(NULL);
 }
 
-int checkName(char *name)
-{
+int checkName(char *name){
     int flag = 0;
     pthread_mutex_lock(&player_list_lock);
     PlayerNode *temp = listOfPlayers;
@@ -288,8 +259,7 @@ int checkName(char *name)
     return flag;
 }
 
-void send_msg(int sock, char *type, char *msg)
-{
+void send_msg(int sock, char *type, char *msg){
     char buf[1024];
     sprintf(buf, "%s %s\n", type, msg);
     send(sock, buf, strlen(buf), 0);

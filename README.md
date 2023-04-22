@@ -3,7 +3,6 @@
 #Madhur Nutulapati - mn712
 
 
-
 ttt (Client)
 The ttt program will connect to the server (ttts), display the current state of the Tic-Tac-Toe grid to the player, receive and transmit moves made by the player, and report moves made by the other player.
 The client program (ttt.c) should connect to the server and display the current state of the board to the player. It should then prompt the player to make a move and send this move to the server. The client program should also listen for incoming messages from the server, including updates to the board state and notifications of game outcomes.
@@ -37,7 +36,7 @@ For the server (ttts.c), here are the basic steps:
 6.Once two players are waiting, randomly select one to be X and the other to be O.DONE
 
 
-7.Send a BEGN message to each player, indicating their role and the name of their opponent.
+7.Send a BEGN message to each player, indicating their role and the name of their opponent. 
 8.Wait for MOVE messages from the players and update the game board accordingly.
 9.Check for win/draw conditions after each move and send the appropriate message to the players.
 If a player resigns, send an RSGN message to the other player and end the game.
