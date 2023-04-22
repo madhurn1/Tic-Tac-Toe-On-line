@@ -1,18 +1,20 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <sys/socket.h>
 #include "protocol.h"
 #include <sys/socket.h>
 
 int play(int, char *);
-void begin(int, char, char *);
+void begin(int, int, char, char *);
 void moved(int, int, char, int, int, char *);
 void invalid(int, int, char *);
 void draw(int, int, char);
 void over(int, int, char, char *);
 
-int main(){
-    return 0;
+int main()
+{
+    return 1;
 }
 
 int play(int sockfd, char *buffer)
@@ -28,9 +30,15 @@ int play(int sockfd, char *buffer)
 
     return 0;
 }
-//name role sock
-void begin(int sockfd, char role, char *name)
-{   
+
+void wait(int sockfd)
+{
+    char *response = "WAIT|0|";
+    send(sockfd, &response, sizeof(response), 0);
+}
+
+void begin(int sockfd, int size, char role, char *name)
+{
     BEGN msg;
     // msg.size = size;%
     char buf[256];
