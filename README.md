@@ -13,7 +13,25 @@ main():
     Inside the loop - we create and allocate memory for a struct which allows the server to keep listening for incoming connections until termination. Next, we use the accept() to wait for client to connect to the server. Once connection is successful it returns a socket FD and more address info. Next, we use pthread_create() which takes our clientHandle function, and a pointer to the con->fd file descripter as arguments. The clienthandle will be responsible for handeling all communication with client. Then, we call pthread_detach() which will essentially clean up its own resources when terminated. Then our signal handlers we call pthread_sigmask () to block signals that the server doesn't want to handle when it is handling a client connection. This process will be continuous until termination. Then we will close the socket.        
     
 clientHandle() - 
-    Create a linked list of players. 
+    Create a linked list of players to create a waiting list type result to keep track of the players coming in and currently in a game. 
+    First we are passed in the socket file descriptor of the connected client. Create a few arrays to hold player names, roles, and their sock file descriptors. Next thing we will be doing is waiting for "PLAY" message from client. For this we have a special function p_recv() that checks to see if we did indeed recieve a message from the client and close if we have or haven't. Then I check to see if the name the user enters is already in use or not by traversing through the linked list and searching for the name. Then finally after the error handeling checks I call addPlayer() which adds the player to the linked list. Then, after calling the function I check my list to see if I have two players ready if not it sleeps for 1 second until there are 2 players are ready. Final step before starting the game I create structs for each player and copy the names to each of its properties(role,name). 
+
+    Game is Now Ready... 
+    First, we will format and write the BEGN message to each player indicating their role and opponent's name. 
+    
+    We start with a while loop that first checks if there is any data to be recieved from the current socket(p_recv). Then we check if the recieved code is move. If it is 'move' we then update the board with the move that was entered in the message. Next we check for 'INVL' message, if it is we write using the client socket the invalid message. Next, we construct a formatted message to both players of the grid update
+
+
+    addPlayer()
+
+
+7.Send a BEGN message to each player, indicating their role and the name of their opponent. 
+8.Wait for MOVE messages from the players and update the game board accordingly.
+9.Check for win/draw conditions after each move and send the appropriate message to the players.
+If a player resigns, send an RSGN message to the other player and end the game.
+If both players agree to a draw, send a DRAW message and end the game.
+Close the connection and thread when the game is over.
+
 
 
 ttt (Client)

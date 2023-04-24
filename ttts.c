@@ -152,9 +152,10 @@ int main(int argc, char *argv[])
         {
             perror("accept");
             free(con);
+            // TODO check for specific error conditions
             continue;
         }
-        printf("Connected\n");
+        // printf("Connected\n");
         error = pthread_sigmask(SIG_BLOCK, &mask, NULL);
         if (error != 0)
         {
@@ -162,7 +163,7 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         pthread_t tid;
-        error = pthread_create(&tid, NULL, clientHandle, &con->fd);
+        error = pthread_create(&tid, NULL, clientHandle, &con->fd);//check maybe error
         if (error != 0)
         {
             fprintf(stderr, "pthread_create: %s\n", strerror(error));
@@ -178,7 +179,7 @@ int main(int argc, char *argv[])
         error = pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
         if (error != 0)
         {
-            fprintf(stderr, "sigmask: %s\n", strerror(error));
+            fprintf(stderr, "sigmask: %s\n", strerror(error));  
             exit(EXIT_FAILURE);
         }
     }
@@ -246,10 +247,11 @@ void *clientHandle(void *arg)
     free(p1);
     free(p2);
     pthread_mutex_unlock(&player_list_lock);
+
     // game can now be started
     char buf[FIELDLEN];
     int bytes;
-    bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player2) + 3, role1, player2);
+    bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player2) + , role1, player2);
     write(sock1, buf, bytes);
     bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player1) + 3, role2, player1);
     write(sock2, buf, bytes);
