@@ -3,6 +3,19 @@
 #Madhur Nutulapati - mn712
 
 
+ttts(server)
+    Gameplan: - Our ttts program will pair up players - choose who will go first and receive commands from the players - track the state of the grid - ensure that invalid moves are rejected - determine game conclusion. 
+    Socket Connection - Listening for incoming connection and create threads for each player (pthread.h). The threads will essentially handle incoming messages from players and send outgoing messages to the players. The server will keep track of the state of the game: The X or O markers of each player. The turn of each player and game conclusion. 
+
+main():
+    Obtain the port number through the file arguments. This will help us with the connection requests between server and client. Next our install_handler function will take in a variable,mask, and will install signal handlers for our SIGINT and sigterm signals and adds them to mask. This function allows the program to handle these signals in a custom way, instead of relying on default behavior. Next, we are going to instantiate a struct addrinfo that holds all address information and initialize its hints. The hints will be set up for our later getaddrinfo() to be used to retrieve network address and service translation functions. Then, we will obtain information for listenting socket using getaddrinfo(). Following that, we will attempt to create a socket using the socket() and we will get a sock file descripter as a result. Then, we will bind the socket to the network address specified 'info' so that the socket can listen for incoming connections at the address. After binding, we will listen() which sets the socket to listen for incoming connection requests. And queue size is the maximum number of pending connnection requests that can be queued before the server starts rejecting new connections. Next, we will free the memory allocated by getaddrinfo for the linked list structures. In a while loop we will continously run while active is true allowing the server to keep listening for incoming connections until it is time to shut down. 
+    Inside the loop - we create and allocate memory for a struct which allows the server to keep listening for incoming connections until termination. Next, we use the accept() to wait for client to connect to the server. Once connection is successful it returns a socket FD and more address info. Next, we use pthread_create() which takes our clientHandle function, and a pointer to the con->fd file descripter as arguments. The clienthandle will be responsible for handeling all communication with client. 
+    Then, we call pthread_detach() which will essentially clean up its own resources when terminated. Then our signal handlers we call pthread_sigmask () to block signals that the server doesn't want to handle when it is handling a client connection. This process will be continuous until termination. Then we will close the socket.        
+    
+    clientHandle() - 
+
+
+
 ttt (Client)
 The ttt program will connect to the server (ttts), display the current state of the Tic-Tac-Toe grid to the player, receive and transmit moves made by the player, and report moves made by the other player.
 The client program (ttt.c) should connect to the server and display the current state of the board to the player. It should then prompt the player to make a move and send this move to the server. The client program should also listen for incoming messages from the server, including updates to the board state and notifications of game outcomes.

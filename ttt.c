@@ -11,6 +11,7 @@
 
 #define GRIDSIZE 3
 #define FIELDLEN 256
+char board[GRIDSIZE+1][GRIDSIZE+1];
 
 typedef struct msg
 {
@@ -23,6 +24,10 @@ typedef struct msg
 
 int p_recv(int sockFD, msg_t *msg);
 int field_count(char *);
+char* update_board(char role,int xCor, int yCor);
+void printGrid(char * board);
+void visualizeGrid(char *stringBoard);
+
 int main(int argc, char *argv[])
 {
     if (argc != 3)
@@ -81,6 +86,10 @@ int main(int argc, char *argv[])
         exit(1);
 
     //**********************************************************************************
+   printGrid(update_board('X',2,2));
+   printGrid(update_board('X',2,2));
+
+    exit(1);
 
     char name[FIELDLEN];
     char buf[FIELDLEN];
@@ -213,81 +222,130 @@ int field_count(char *type)
     return 0;
 }
 
-void printGrid(char grid[GRIDSIZE][GRIDSIZE])
+// void check_game_end(){
+//     // check rows
+//     for (int i = 0; i < GRIDSIZE; i++)
+//     {
+//         if (board[i][0] != '-' && board[i][0] == board[i][1] && board[i][1] == board[i][2])
+//         {
+//             printf("Game over. Winner: %c\n", board[i][0]);
+//             exit(0);
+//         }
+//     }
+
+//     // check columns
+//     for (int j = 0; j < GRIDSIZE; j++)
+//     {
+//         if (board[0][j] != '-' && board[0][j] == board[1][j] && board[1][j] == board[2][j])
+//         {
+//             printf("Game over. Winner: %c\n", board[0][j]);
+//             exit(0);
+//         }
+//     }
+//     // check diagonals
+//     if (board[0][0] != '-' && board[0][0] == board[1][1] && board[1][1] == board[2][2])
+//     {
+//         printf("Game over. Winner: %c\n", board[0][0]);
+//         exit(0);
+//     }
+//     if (board[0][2] != '-' && board[0][2] == board[1][1] && board[1][1] == board[2][0])
+//     {
+//         printf("Game over. Winner: %c\n", board[0][2]);
+//         exit(0);
+//     }
+
+//     // check for tie
+//     int count = 0;
+
+//     for (int i = 0; i < GRIDSIZE; i++)
+//     {
+//         for (int j = 0; j < GRIDSIZE; j++)
+//         {
+//             if (board[i][j] != '-')
+//             {
+//                 count++;
+//             }
+//         }
+//     }
+//     if (count == GRIDSIZE * GRIDSIZE)
+//     {
+//         printf("Game over. Tie.\n");
+//         exit(0);
+//     }
+// }           
+
+// // Update the game board based on a move
+
+
+
+char* update_board(char role,int xCor, int yCor)
 {
-    for (int i = 0; i < GRIDSIZE; i++)
-    {
-        for (int j = 0; j < GRIDSIZE; j++)
-        {
-            printf(" %c ", grid[i][j]);
-            if (j < GRIDSIZE - 1)
-            {
-                printf("|");
+    for(int h=1;h<4;h++){
+        for(int j=1;j<4;j++){
+
+
+            if(board[h][j]==role){
+            //invalid message spot already taken. 
+            // 
+            printf("error1\n");
+            exit(1);
+            }
+
+            if(h==xCor && j == yCor){
+            board[h][j] = role;
+            }
+            else if(xCor > 3 || yCor>3){
+            //Invalid outside of array. 
+            //invalid message
+            printf("error2\n");
+            exit(1);
+            }
+            else{
+            if(board[h][j]==role){
+            continue;
+            }
+            board[h][j] = '.';
             }
         }
-        printf("\n");
-        if (i < GRIDSIZE - 1)
-        {
-            printf("---|---|---\n");
+    }
+
+    char* stringBoard = malloc((GRIDSIZE * GRIDSIZE + 1) * sizeof(char));//NEEDS TO BE FREED EVENTUALLY
+    int count=0;
+    
+    for (int i = 1; i < 4; i++) {
+        for (int j = 1; j < 4; j++) {
+            stringBoard[count++] = board[i][j];   
         }
     }
+    return stringBoard; 
 }
 
-void check_game_end(){
-    // check rows
-    for (int i = 0; i < GRIDSIZE; i++)
-    {
-        if (board[i][0] != '-' && board[i][0] == board[i][1] && board[i][1] == board[i][2])
-        {
-            printf("Game over. Winner: %c\n", board[i][0]);
-            exit(0);
+
+
+void printGrid(char * stringBoard){
+    for (int i = 0; i < 9; i++){
+        printf("%c",stringBoard[i]);
+    }
+    printf("\n");
+    visualizeGrid(stringBoard);
+    free(stringBoard);
+}
+
+void visualizeGrid(char *stringBoard){
+    char createGrid[GRIDSIZE+1][GRIDSIZE+1];
+    int k = 0;
+
+    for(int x = 0; x < 3; x++){
+        for(int y = 0; y < 3; y++){
+            createGrid[x][y] = stringBoard[k++];
         }
     }
 
-    // check columns
-    for (int j = 0; j < GRIDSIZE; j++)
-    {
-        if (board[0][j] != '-' && board[0][j] == board[1][j] && board[1][j] == board[2][j])
-        {
-            printf("Game over. Winner: %c\n", board[0][j]);
-            exit(0);
+    // Print the grid
+    for(int x = 0; x < 3; x++){
+        for(int y = 0; y < 3; y++){
+            printf("%c ", createGrid[x][y]);
         }
+        printf("\n");
     }
-    // check diagonals
-    if (board[0][0] != '-' && board[0][0] == board[1][1] && board[1][1] == board[2][2])
-    {
-        printf("Game over. Winner: %c\n", board[0][0]);
-        exit(0);
-    }
-    if (board[0][2] != '-' && board[0][2] == board[1][1] && board[1][1] == board[2][0])
-    {
-        printf("Game over. Winner: %c\n", board[0][2]);
-        exit(0);
-    }
-
-    // check for tie
-    int count = 0;
-
-    for (int i = 0; i < GRIDSIZE; i++)
-    {
-        for (int j = 0; j < GRIDSIZE; j++)
-        {
-            if (board[i][j] != '-')
-            {
-                count++;
-            }
-        }
-    }
-    if (count == GRIDSIZE * GRIDSIZE)
-    {
-        printf("Game over. Tie.\n");
-        exit(0);
-    }
-}           
-
-// Update the game board based on a move
-void update_board(char role, int row, int col)
-{
-    board[row][col] = role;
-    printGrid(board);
 }
