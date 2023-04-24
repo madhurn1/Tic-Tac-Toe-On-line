@@ -10,9 +10,8 @@
 #include <errno.h>
 #include <ctype.h>
 
-#define GRIDSIZE 3
 #define FIELDLEN 256
-char board[GRIDSIZE+1][GRIDSIZE+1];
+char board[3][3];
 
 typedef struct msg
 {
@@ -86,10 +85,10 @@ int main(int argc, char *argv[])
         exit(1);
 
     //**********************************************************************************
-//    printGrid(update_board('X',2,2));
-//    printGrid(update_board('X',2,2));
+    //    printGrid(update_board('X',2,2));
+    //    printGrid(update_board('X',2,2));
 
-//    exit(1);
+    //    exit(1);
 
     // ask for name and write play message
     char name[FIELDLEN];
@@ -106,7 +105,19 @@ int main(int argc, char *argv[])
     struct msg pass;
     pass.len = 0;
     pass.num_fields = 0;
-    if (p_recv(sockFD, &pass) > 0 && strcmp(pass.code, "WAIT") == 0)
+    while (p_recv(sockFD, &pass) > 0 && strcmp(pass.code, "INVL") == 0)
+    {
+        if (strcmp(pass.code, "INVL") == 0)
+        {
+            printf("%s Enter a new name:\n", pass.fields[0]);
+            bytes = read(STDIN_FILENO, name, FIELDLEN);
+            name[bytes - 1] = '\0';
+            bytes = snprintf(buf, FIELDLEN, "PLAY|%d|%s|", bytes, name);
+            write(sockFD, buf, bytes);
+        }
+    }
+
+    if (strcmp(pass.code, "WAIT") == 0)
     {
         if (p_recv(sockFD, &pass) > 0 && strcmp(pass.code, "BEGN") == 0)
         {
@@ -115,52 +126,52 @@ int main(int argc, char *argv[])
             if (role == 'X')
                 turn(sockFD, role);
 
-            while (strcmp(pass.code, "OVER") != 0)
+            while (p_recv(sockFD, &pass) > 0)
             {
-                if (p_recv(sockFD, &pass) > 0)
+                if (strcmp(pass.code, "INVL") == 0)
                 {
-                    if (strcmp(pass.code, "INVL") == 0 && pass.fields[0][0] == '!')
-                        printf("%s\n", pass.fields[2]);
+                    printf("%s\n", pass.fields[0]);
+                    if (pass.fields[0][0] != '!')
+                        turn(sockFD, role);
+                }
 
-                    else if (strcmp(pass.code, "MOVD") == 0 || strcmp(pass.code, "INVL"))
-                    {
-                        if (strcmp(pass.code, "INVL") == 0)
-                            printf("%s\n", pass.fields[0]);
-                        if (strcmp(pass.code, "MOVD") == 0)
-                        {
-                            printf("New board:\n");
-                            printGrid(pass.fields[1]);
-                        }
-                        if (role != pass.fields[0][0])
-                            turn(sockFD, role);
-                    }
+                else if (strcmp(pass.code, "MOVD") == 0)
+                {
+                    printf("New board:\n");
+                    printGrid(pass.fields[1]);
+                    if (role != pass.fields[0][0])
+                        turn(sockFD, role);
+                }
 
-                    else if (strcmp(pass.code, "DRAW") == 0)
+                else if (strcmp(pass.code, "DRAW") == 0)
+                {
+                    if (pass.fields[0][0] == 'R')
                     {
-                        if (pass.fields[0][0] == 'R')
-                        {
-                            printf("Your opponent has declined to draw.\n");
-                        }
-                        if (pass.fields[0][0] == 'S')
-                        {
-                            printf("Your opponent wishes to draw. Enter 'A' to accept or 'R' to reject.\n");
-                            char choice;
-                            while (read(STDIN_FILENO, &choice, FIELDLEN) != 1 || choice != 'R' || choice != 'A')
-                                printf("Invalid response, please try again.\n");
-                            snprintf(buf, FIELDLEN, "DRAW|2|%c|", choice);
-                            write(sockFD, buf, 9);
-                        }
+                        printf("Your opponent has declined to draw.\n");
+                        turn(sockFD, role);
                     }
-                    else if (strcmp(pass.code, "OVER") == 0)
+                    if (pass.fields[0][0] == 'S')
                     {
-                        if (pass.fields[0][0] == 'W')
-                            printf("%s You won!\n", pass.fields[1]);
-                        if (pass.fields[0][0] == 'L')
-                            printf("%s You lost :(\n", pass.fields[1]);
-                        if (pass.fields[0][0] == 'D')
-                            printf("%s The game ended in a tie.\n", pass.fields[1]);
-                        return 0;
+                        printf("Your opponent wishes to draw. Enter 'A' to accept or 'R' to reject.\n");
+                        char choice;
+                        while (read(STDIN_FILENO, &choice, FIELDLEN) != 1 || (choice != 'R' && choice != 'A'))
+                            printf("Invalid response, please try again.\n");
+                        snprintf(buf, FIELDLEN, "DRAW|2|%c|", choice);
+                        write(sockFD, buf, 9);
                     }
+                }
+
+                else if (strcmp(pass.code, "OVER") == 0)
+                {
+                    if (pass.fields[0][0] == 'W')
+                        printf("%s You won!\n", pass.fields[1]);
+
+                    if (pass.fields[0][0] == 'L')
+                        printf("%s You lost :(\n", pass.fields[1]);
+
+                    if (pass.fields[0][0] == 'D')
+                        printf("%s The game ended in a tie.\n", pass.fields[1]);
+                    break;
                 }
             }
         }
@@ -279,15 +290,6 @@ int field_count(char *type)
     return 0;
 }
 
-void printGrid(char *board)
-{
-    for (int i = 0; i < 9; i++)
-    {
-        printf("%c", board[i]);
-    }
-    printf("\n");
-}
-
 void turn(int sock, char role)
 {
     char choice[5];
@@ -316,5 +318,17 @@ void turn(int sock, char role)
     {
         printf("Invalid response, please try again.\n");
         turn(sock, role);
+    }
+}
+
+void printGrid(char *stringBoard)
+{
+    int k = 0;
+    // Print the grid
+    for (int x = 0; x < 3; x++)
+    {
+        for (int y = 0; y < 3; y++)
+            printf("%c ", stringBoard[k++]);
+        printf("\n");
     }
 }
