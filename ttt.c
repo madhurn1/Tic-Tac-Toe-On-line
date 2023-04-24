@@ -8,6 +8,7 @@
 #include <sys/select.h>
 // #include "protocol.c"
 #include <errno.h>
+#include <ctype.h>
 
 #define GRIDSIZE 3
 #define FIELDLEN 256
@@ -23,6 +24,9 @@ typedef struct msg
 
 int p_recv(int sockFD, msg_t *msg);
 int field_count(char *);
+void printGrid(char *board);
+void turn(int sock, char role);
+
 int main(int argc, char *argv[])
 {
     if (argc != 3)
@@ -82,23 +86,81 @@ int main(int argc, char *argv[])
 
     //**********************************************************************************
 
+    // ask for name and write play message
     char name[FIELDLEN];
     char buf[FIELDLEN];
     int bytes;
+    char role;
+
     printf("First, what is your name?\n");
     bytes = read(STDIN_FILENO, name, FIELDLEN);
     name[bytes - 1] = '\0';
-    bytes = snprintf(buf, FIELDLEN, "PLAY|%d|%s|\n", bytes, name);
+    bytes = snprintf(buf, FIELDLEN, "PLAY|%d|%s|", bytes, name);
     write(sockFD, buf, bytes);
 
     struct msg pass;
     pass.len = 0;
     pass.num_fields = 0;
-    printf("%d\n", p_recv(sockFD, &pass));
-    pass.num_fields = 0;
-    printf("%d\n", p_recv(sockFD, &pass));
-    pass.num_fields = 0;
-    printf("%d\n", p_recv(sockFD, &pass));
+    if (p_recv(sockFD, &pass) > 0 && strcmp(pass.code, "WAIT") == 0)
+    {
+        if (p_recv(sockFD, &pass) > 0 && strcmp(pass.code, "BEGN") == 0)
+        {
+            role = pass.fields[0][0];
+            printf("The game has begun. You will be facing %s.\n", pass.fields[1]);
+            if (role == 'X')
+                turn(sockFD, role);
+
+            while (strcmp(pass.code, "OVER") != 0)
+            {
+                if (p_recv(sockFD, &pass) > 0)
+                {
+                    if (strcmp(pass.code, "INVL") == 0 && pass.fields[0][0] == '!')
+                        printf("%s\n", pass.fields[2]);
+
+                    else if (strcmp(pass.code, "MOVD") == 0 || strcmp(pass.code, "INVL"))
+                    {
+                        if (strcmp(pass.code, "INVL") == 0)
+                            printf("%s\n", pass.fields[0]);
+                        if (strcmp(pass.code, "MOVD") == 0)
+                        {
+                            printf("New board:\n");
+                            printGrid(pass.fields[1]);
+                        }
+                        if (role != pass.fields[0][0])
+                            turn(sockFD, role);
+                    }
+
+                    else if (strcmp(pass.code, "DRAW") == 0)
+                    {
+                        if (pass.fields[0][0] == 'R')
+                        {
+                            printf("Your opponent has declined to draw.\n");
+                        }
+                        if (pass.fields[0][0] == 'S')
+                        {
+                            printf("Your opponent wishes to draw. Enter 'A' to accept or 'R' to reject.\n");
+                            char choice;
+                            while (read(STDIN_FILENO, &choice, FIELDLEN) != 1 || choice != 'R' || choice != 'A')
+                                printf("Invalid response, please try again.\n");
+                            snprintf(buf, FIELDLEN, "DRAW|2|%c|", choice);
+                            write(sockFD, buf, 9);
+                        }
+                    }
+                    else if (strcmp(pass.code, "OVER") == 0)
+                    {
+                        if (pass.fields[0][0] == 'W')
+                            printf("%s You won!\n", pass.fields[1]);
+                        if (pass.fields[0][0] == 'L')
+                            printf("%s You lost :(\n", pass.fields[1]);
+                        if (pass.fields[0][0] == 'D')
+                            printf("%s The game ended in a tie.\n", pass.fields[1]);
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+
     close(sockFD);
     return 0;
 }
@@ -126,8 +188,6 @@ int p_recv(int sockFD, msg_t *msg)
     }
 
     msg->len += bytes_read;
-
-    printf("%d %d\n", msg->len, bytes_read);
     // check for complete message
     for (int i = msgend; i < msg->len; i++)
     {
@@ -197,6 +257,7 @@ int p_recv(int sockFD, msg_t *msg)
     memmove(msg->buf, msg->buf + msgend, leftover_length);
     msg->buf[leftover_length] = '\0';
     msg->len = leftover_length;
+    msg->num_fields = 0;
 
     return 1;
 }
@@ -205,30 +266,50 @@ int field_count(char *type)
 {
     if (strcmp(type, "WAIT") == 0)
         return 2;
-    if (strcmp(type, "BEGN") == 0 || strcmp(type, "INVL") == 0 || strcmp(type, "DRAW") == 0 || strcmp(type, "OVER") == 0)
+    if (strcmp(type, "INVL") == 0 || strcmp(type, "DRAW") == 0)
         return 3;
-    if (strcmp(type, "MOVD"))
+    if (strcmp(type, "BEGN") == 0 || strcmp(type, "MOVD") == 0 || strcmp(type, "OVER") == 0)
         return 4;
 
     return 0;
 }
 
-void printGrid(char grid[GRIDSIZE][GRIDSIZE])
+void printGrid(char *board)
 {
-    for (int i = 0; i < GRIDSIZE; i++)
+    for (int i = 0; i < 9; i++)
     {
-        for (int j = 0; j < GRIDSIZE; j++)
-        {
-            printf(" %c ", grid[i][j]);
-            if (j < GRIDSIZE - 1)
-            {
-                printf("|");
-            }
-        }
-        printf("\n");
-        if (i < GRIDSIZE - 1)
-        {
-            printf("---|---|---\n");
-        }
+        printf("%c", board[i]);
+    }
+    printf("\n");
+}
+
+void turn(int sock, char role)
+{
+    char choice[5];
+    char buf[FIELDLEN];
+    printf("Enter 'MOVE' to make a move, 'RSGN' to resign, or 'DRAW' to draw.\n");
+    read(STDIN_FILENO, choice, FIELDLEN);
+    choice[4] = '\0';
+    if (strcmp(choice, "MOVE") == 0)
+    {
+        printf("move\n");
+        char choice[4];
+        printf("Enter the position of your move in this format 'x,y'.\n");
+        while (read(STDIN_FILENO, choice, FIELDLEN) != 4 || !isdigit(choice[0]) || !isdigit(choice[0]))
+            printf("Invalid response, please try again.\n");
+        choice[3] = '\0';
+        snprintf(buf, FIELDLEN, "MOVE|6|%c|%s|", role, choice);
+        write(sock, buf, 13);
+    }
+    else if (strcmp(choice, "RSGN") == 0)
+        write(sock, "RSGN|0|", 7);
+
+    else if (strcmp(choice, "DRAW") == 0)
+        write(sock, "DRAW|2|S|", 9);
+
+    else
+    {
+        printf("Invalid response, please try again.\n");
+        turn(sock, role);
     }
 }
