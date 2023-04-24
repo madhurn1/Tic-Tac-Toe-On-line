@@ -14,15 +14,22 @@
 // game Server
 #define QUEUE_SIZE 8
 #define FIELDLEN 256
+#define BOARD [3][3]
 
 // global mutex to ensure thread-safe access to the list of player names
 pthread_mutex_t player_list_lock = PTHREAD_MUTEX_INITIALIZER;
 
+char board[3][3] = {
+    {'.', '.', '.'},
+    {'.', '.', '.'},
+    {'.', '.', '.'}};
+
 typedef struct PlayerNode
 {
     char pName[FIELDLEN];
+    char role;
+    int sock;
     struct PlayerNode *next;
-    char type;
 } PlayerNode;
 
 typedef struct msg
@@ -36,6 +43,8 @@ typedef struct msg
 
 int p_recv(int sockFD, msg_t *msg);
 int field_count(char *);
+char *updateBoard(char role, int xCor, int yCor);
+void switchsock(int *sock, int sock1, int sock2);
 
 volatile int active = 1;
 
@@ -56,7 +65,7 @@ PlayerNode *listOfPlayers = NULL;
 void *clientHandle(void *arg);
 void send_msg(int sock, char *type, char *msg);
 int checkName(char *name);
-void addPlayer(char *name);
+void addPlayer(char *name, int sock);
 void install_handlers(sigset_t *mask);
 
 int main(int argc, char *argv[])
@@ -152,7 +161,6 @@ int main(int argc, char *argv[])
             fprintf(stderr, "sigmask: %s\n", strerror(error));
             exit(EXIT_FAILURE);
         }
-
         pthread_t tid;
         error = pthread_create(&tid, NULL, clientHandle, &con->fd);
         if (error != 0)
@@ -182,69 +190,127 @@ int main(int argc, char *argv[])
 void *clientHandle(void *arg)
 {
     int client_sock = *(int *)arg;
-    char playerName[FIELDLEN];
-    char Player1[FIELDLEN];
-    char Player2[FIELDLEN];
+    // char playerName[FIELDLEN];
+    char player1[FIELDLEN];
+    char player2[FIELDLEN];
+    int sock1;
+    int sock2;
+    int role1;
+    int role2;
     int playerflag = 0;
 
     // wait for "PLAY" message from client
-    ssize_t val = recv(client_sock, playerName, sizeof(playerName), 0);
-    if (val <= 0)
-    {
-        close(client_sock);
-        return NULL;
-    }
-    // checking to seee if player name is inuse
-    if (checkName(playerName) == 1)
-    {
-        send_msg(client_sock, "INVL", "Name currently in use");
-        close(client_sock);
-        return NULL;
-    }
-    // adding player to linked list structure.
-    addPlayer(playerName);
+    struct msg pass;
+    pass.len = 0;
+    pass.num_fields = 0;
 
-    send_msg(client_sock, "WAIT", NULL); // not sure for currect spot
+    if (p_recv(client_sock, &pass) <= 0)
+        close(client_sock);
+
+    // checking to seee if player name is inuse
+
+    if (checkName(pass.fields[0]) == 1)
+        write(client_sock, "INVL|12|Name in use|", 19);
+    else
+        write(client_sock, "WAIT|0|", 7);
+
+    // adding player to linked list structure.
+    addPlayer(pass.fields[0], client_sock);
 
     while (1)
     {
         pthread_mutex_lock(&player_list_lock);
         if (listOfPlayers != NULL && listOfPlayers->next != NULL)
-        {
             playerflag = 2;
-        }
+
         pthread_mutex_unlock(&player_list_lock);
         if (playerflag == 2)
-        {
             // both players ready
             break;
-        }
+
         sleep(1);
     }
 
     pthread_mutex_lock(&player_list_lock);
     PlayerNode *p1 = listOfPlayers;
     PlayerNode *p2 = listOfPlayers->next;
-    int p = rand() % 2;
-    if (p == 0)
-        p1->type = 'o';
-    else
-    {
-        p2->type = 'x';
-    }
-    strncpy(Player1, p1->pName, FIELDLEN);
-    strncpy(Player2, p2->pName, FIELDLEN);
+    p1->role = 'X';
+    p2->role = 'O';
+    strncpy(player1, p1->pName, FIELDLEN);
+    strncpy(player2, p2->pName, FIELDLEN);
+    sock1 = p1->sock;
+    sock2 = p2->sock;
+    role1 = p1->role;
+    role2 = p2->role;
     listOfPlayers = listOfPlayers->next->next;
     free(p1);
     free(p2);
     pthread_mutex_unlock(&player_list_lock);
     // game can now be started
+    char buf[FIELDLEN];
+    int bytes;
+    bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player2) + 3, role1, player2);
+    write(sock1, buf, bytes);
+    bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player1) + 3, role2, player1);
+    write(sock2, buf, bytes);
+    int cursock = sock1;
+    while (1)
+    {
+        if (p_recv(cursock, &pass) > 0)
+        {
+            if (strcmp(pass.code, "MOVE") == 0)
+            {
+                char *newboard = updateBoard(pass.fields[0][0], pass.fields[1][0] - '0' - 1, pass.fields[1][2] - '0' - 1);
+                if (strcmp(newboard, "INVL") == 0)
+                {
+                    write(client_sock, "INVL|14|Invalid move|", 21);
+                    continue;
+                }
 
+                snprintf(buf, FIELDLEN, "MOVD|12|%c|%s|", pass.fields[0][0], newboard);
+                write(sock1, buf, 20);
+                write(sock2, buf, 20);
+                switchsock(&cursock, sock1, sock2);
+            }
+
+            else if (strcmp(pass.code, "RSGN") == 0)
+            {
+                bytes = snprintf(buf, FIELDLEN, "OVER|%ld|W|%s has resigned|", strlen(p1->pName) + 17, p1->pName);
+                write(client_sock, buf, bytes);
+                bytes = snprintf(buf, FIELDLEN, "OVER|%ld|L|%s has resigned|", strlen(p1->pName) + 17, p1->pName);
+                write(client_sock, buf, bytes);
+                break;
+            }
+
+            else if (strcmp(pass.code, "DRAW") == 0)
+            {
+                if (pass.fields[0][0] == 'S')
+                    write(client_sock, "DRAW|2|S|", 9);
+                if (pass.fields[0][0] == 'R')
+                    write(client_sock, "DRAW|2|R|", 9);
+                if (pass.fields[0][0] == 'A')
+                {
+                    write(client_sock, "OVER|37|D|Both players have decided to draw|", 44);
+                    write(client_sock, "OVER|37|D|Both players have decided to draw|", 44);
+                    break;
+                }
+            }
+        }
+    }
     close(client_sock);
     pthread_exit(NULL);
 }
 
-int checkName(char *name){
+void switchsock(int *sock, int sock1, int sock2)
+{
+    if (*sock == sock1)
+        *sock = sock2;
+    else
+        *sock = sock1;
+}
+
+int checkName(char *name)
+{
     int flag = 0;
     pthread_mutex_lock(&player_list_lock);
     PlayerNode *temp = listOfPlayers;
@@ -262,30 +328,23 @@ int checkName(char *name){
     return flag;
 }
 
-void send_msg(int sock, char *type, char *msg){
-    char buf[1024];
-    sprintf(buf, "%s %s\n", type, msg);
-    send(sock, buf, strlen(buf), 0);
-}
-
-void addPlayer(char *name)
+void addPlayer(char *name, int sock)
 {
     // linked list
     PlayerNode *node_p = (PlayerNode *)malloc(sizeof(PlayerNode)); // this needs to be freed som
     strncpy(node_p->pName, name, FIELDLEN);
+    node_p->sock = sock;
     node_p->next = NULL;
     pthread_mutex_lock(&player_list_lock);
     if (listOfPlayers == NULL)
-    {
         listOfPlayers = node_p;
-    }
+
     else
     {
         PlayerNode *temp = listOfPlayers;
         while (temp->next != NULL)
-        {
             temp = temp->next;
-        }
+
         temp->next = node_p;
     }
     pthread_mutex_unlock(&player_list_lock);
@@ -320,11 +379,8 @@ int p_recv(int sockFD, msg_t *msg)
     }
 
     else if (bytes_read == 0 && msg->len == 0)
-    {
-        printf("poo\n");
         // connection closed
         return 0;
-    }
 
     msg->len += bytes_read;
 
@@ -398,18 +454,40 @@ int p_recv(int sockFD, msg_t *msg)
     memmove(msg->buf, msg->buf + msgend, leftover_length);
     msg->buf[leftover_length] = '\0';
     msg->len = leftover_length;
-
+    msg->num_fields = 0;
     return 1;
 }
 
 int field_count(char *type)
 {
-    if (strcmp(type, "WAIT") == 0)
+    if (strcmp(type, "RSGN") == 0)
         return 2;
-    if (strcmp(type, "BEGN") == 0 || strcmp(type, "INVL") == 0 || strcmp(type, "DRAW") == 0 || strcmp(type, "OVER") == 0)
+    if (strcmp(type, "PLAY") == 0 || strcmp(type, "DRAW") == 0)
         return 3;
-    if (strcmp(type, "MOVD"))
+    if (strcmp(type, "MOVE") == 0)
         return 4;
 
     return 0;
+}
+
+char *updateBoard(char role, int xCor, int yCor)
+{
+    printf("%d,%d\n", xCor, yCor);
+    if (xCor > 2 || xCor < 0 || yCor > 2 || yCor < 0)
+        return "INVL";
+
+    if (board[xCor][yCor] == '.')
+        board[xCor][yCor] = role;
+    else
+        return NULL;
+
+    static char stringBoard[10];
+    int count = 0;
+
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            stringBoard[count++] = board[i][j];
+
+    printf("%s\n", stringBoard);
+    return stringBoard;
 }

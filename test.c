@@ -5,6 +5,11 @@
 
 #define BUFLEN 1024
 
+char board[3][3] = {
+    {'.', '.', '.'},
+    {'.', '.', '.'},
+    {'.', '.', '.'}};
+
 typedef struct handle
 {
     int socket;
@@ -17,13 +22,30 @@ typedef struct msg
     int num_fields;
 } msg_t;
 
+char *update_board(char role, int xCor, int yCor);
 int field_count(char *type);
 int read_field(char *buf, int start, int end, char **field);
 int p_recv(int, msg_t *msg);
+void printGrid(char *board);
+void switchsock(int *sock, int sock1, int sock2);
 
 int main()
 {
 
+    int x = 1;
+    int y = 1;
+    int z = 2;
+    switchsock(&x, y, z);
+    printf("%d\n", x);
+
+    switchsock(&x, y, z);
+    printf("%d\n", x);
+
+    switchsock(&x, y, z);
+    printf("%d\n", x);
+    return 0;
+    /*
+    write(STDOUT_FILENO, "DRAW|2|S|", 8);
     char name[BUFLEN];
     char buf[BUFLEN];
     int bytes;
@@ -35,7 +57,44 @@ int main()
 
     struct msg pass;
     pass.num_fields = 0;
-    return p_recv(STDIN_FILENO, &pass);
+    return p_recv(STDIN_FILENO, &pass);*/
+}
+
+char *update_board(char role, int xCor, int yCor)
+{
+    if (xCor > 2 || yCor > 2)
+        return NULL;
+
+    for (int h = 0; h < 3; h++)
+        for (int j = 0; j < 3; j++)
+        {
+            if (h == xCor && j == yCor)
+            {
+                if (board[h][j] == '.')
+                    board[h][j] = role;
+                else
+                    return NULL;
+            }
+        }
+
+    static char stringBoard[9];
+    int count = 0;
+
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            stringBoard[count++] = board[i][j];
+
+    printf("%s\n", stringBoard);
+    return stringBoard;
+}
+
+void printGrid(char *board)
+{
+    for (int i = 0; i < 9; i++)
+    {
+        printf("%c", board[i]);
+    }
+    printf("\n");
 }
 int field_count(char *type)
 {
@@ -164,4 +223,12 @@ int p_recv(int sock, msg_t *msg)
             msgend = 0;
         }
     }
+}
+
+void switchsock(int *sock, int sock1, int sock2)
+{
+    if (*sock == sock1)
+        *sock = sock2;
+    else
+        *sock = sock1;
 }
