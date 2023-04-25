@@ -154,10 +154,6 @@ int main(int argc, char *argv[])
         {
             perror("accept");
             free(con);
-<<<<<<< HEAD
-            // TODO check for specific error conditions
-            continue;
-=======
 
             switch (errno)
             {
@@ -171,9 +167,8 @@ int main(int argc, char *argv[])
                 perror("accept");
                 continue;
             }
->>>>>>> d77abcfd4416b91cdd6f525cba73bd99d265e3c2
         }
-        // printf("Connected\n");
+        printf("Connected\n");
         error = pthread_sigmask(SIG_BLOCK, &mask, NULL);
         if (error != 0)
         {
@@ -269,7 +264,7 @@ void *clientHandle(void *arg)
     // game can now be started
     char buf[FIELDLEN];
     int bytes;
-    bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player2) + , role1, player2);
+    bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player2) + 3, role1, player2);
     write(sock1, buf, bytes);
     bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player1) + 3, role2, player1);
     write(sock2, buf, bytes);
@@ -281,12 +276,17 @@ void *clientHandle(void *arg)
             if (strcmp(pass.code, "MOVE") == 0)
             {
                 char *newboard = updateBoard(pass.fields[0][0], pass.fields[1][0] - '0' - 1, pass.fields[1][2] - '0' - 1);
-                if (strcmp(newboard, "INVL") == 0)
+                if (strcmp(newboard, "INVL1") == 0)
                 {
-                    write(cursock, "INVL|14|Invalid move|", 21);
+                    write(cursock, "INVL|29|That move is off the grid.|", 35);
                     continue;
                 }
-
+                if (strcmp(newboard, "INVL2") == 0)
+                {
+                    write(cursock, "INVL|24|That space is occupied.|", 32);
+                    continue;
+                }
+     
                 if (gameEnd() == 2)
                 {
                     write(cursock, "OVER|18|W||", 11);
@@ -532,12 +532,12 @@ char *updateBoard(char role, int xCor, int yCor)
 {
     printf("%d,%d\n", xCor, yCor);
     if (xCor > 2 || xCor < 0 || yCor > 2 || yCor < 0)
-        return "INVL";
+        return "INVL1";
 
     if (board[xCor][yCor] == '.')
         board[xCor][yCor] = role;
     else
-        return "INVL";
+        return "INVL2";
 
     static char stringBoard[10];
     int count = 0;

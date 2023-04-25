@@ -1,4 +1,160 @@
-PLAY Madhur Nutulapati
+INPUTS testing ...
+
+//testing diagonol win
+Outcome: Client 1 wins
+
+Client 1 
+PLAY Madhur
 MOVE 1,3
-MOVE 1,2
+MOVE 2,2 
+MOVE 3,1
+
+Client 2
+PLAY Amani
 MOVE 1,1
+MOVE 3,3
+    
+-------------------------------------------------------------------
+//testing horrizontal win conditions
+Outcome: Client 2 wins
+
+Client 1 
+PLAY Madhur
+MOVE 3,3
+MOVE 2,2
+MOVE 3,1
+MOVE 3,2
+
+Client 2
+PLAY Amani
+MOVE 2,1
+MOVE 1,1
+MOVE 1,3
+--------------------------------------------------------------------
+//testing Vertical win conditions 
+Outcome: Client 1 wins...
+
+Client 1 
+PLAY Madhur
+MOVE 1,1
+MOVE 2,1
+MOVE 3,1
+
+Client 2
+PLAY Amani
+MOVE 1,3
+MOVE 2,3
+
+-------------------------------------------------------------------
+//testing resigning option 
+Outcome: Client 1 wins by Client 2 resigning
+
+Client 1 
+PLAY Madhur
+MOVE 2,1
+MOVE 1,1
+MOVE 3,1
+
+Client 2
+PLAY Amani
+MOVE 1,3
+MOVE 2,3
+MOVE 2,1
+RSGN
+----------------------------------------------------------------------
+//testing draw by the board filling up
+Outcome: The board is filled. The game ended in a tie
+
+Client 1 
+PLAY Madhur
+MOVE 3,1
+MOVE 3,3
+MOVE 2,2
+MOVE 1,2
+MOVE 2,3
+
+Client 2
+PLAY Amani
+MOVE 2,1
+MOVE 3,2
+MOVE 1,3
+MOVE 1,1
+----------------------------------------------------------------
+//Draw(accept draw) 
++ trying to take a spot that has already been taken
++ trying to move marker to a cell outside of the grid. Example: 1,4
+
+Outcome: Draw/tie
+Note: INVL message successfully printed and prompted player to try again
+(for both error)
+
+Client 1 
+PLAY Madhur
+MOVE 1,1
+MOVE 3,1
+ACCEPT
+
+Client 2
+PLAY Amani
+MOVE 1,3
+MOVE 1,1
+MOVE 3,4
+DRAW
+--------------------------------------------------------------------
+Testing: Draw (reject) and RSGN
+Outcome: Client 2 wins by RSGN
+breakdown: Client 2 rejects client's 1s attempt to DRAW. 
+And then client 1 resigns
+
+Client 1 
+Play Madhur
+DRAW
+RSG
+
+Client 2
+Play Amani
+R(reject)
+---------------------------------------------------------------------
+Testing: Invalid INPUTS and Incorrect Formats
+Outcome: Invalid response messages to each one respectively
+Various edge cases being checked, where the client is inserting responses that 
+are not possible. 
+
+Client 1 
+Play Madhur
+MOVE 11
+B
+A
+
+Client 2
+Play Amani
+RSGN abcd
+DRAW
+---------------------------------------------------------------------
+MULTITHREADING (Concurrent games): 
+
+Client 1 
+Play Madhur
+
+
+Client 2
+Play Amani
+
+Client 3
+Play Joe
+
+client 4
+Play Beckham
+
+---------------------------------------------------------------------
+
+
+
+
+ISSUES or suggestions to fix: 
+1. line 298 ttt.c - EX: Move 1,2 - it should ask to input something that is either a move,resign, or draw. 
+2. MULTITHREADING GRID - EVERYONE PLAYING ON THE SAME GRID 
+3. CHECK FOR A DRAW WITHOUT TYPING DRAW
+4. When you run back to back games - its struggling to find valid command. Does not work 
+6. Wait message by server??
+

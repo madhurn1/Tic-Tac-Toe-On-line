@@ -19,24 +19,24 @@ clientHandle() -
     Game is Now Ready... 
     First, we will format and write the BEGN message to each player indicating their role and opponent's name. 
     
-    We start with a while loop that first checks if there is any data to be recieved from the current socket(p_recv). Then we check if the recieved code is move. If it is 'move' we then update the board with the move that was entered in the message. Next we check for 'INVL' message, if it is we write using the client socket the invalid message. Next, we construct a formatted message to both players of the grid update
+    We start with a while loop that first checks if there is any data to be recieved from the current socket(p_recv). Then we check if the recieved code is move. If it is 'move' we then update the board with the move that was entered in the message. We consequently update the board using our UpdateBoard (). Next we check for 'INVL' message, if it is we write using the client socket the invalid message. Next, we construct a formatted message to send both the grid update. We then check our gameEnding conditions using gameEnd() to see if the game has ended and the current player has won. We then check if the game has ended in a draw. Send a formatted message if game is ongoing and we are trying to communicate move has been updated or accounted for. Then, we check if the received code is "RSGN" (resign), if it is we then construct a message to send to both players indicating that the first player has resigned. Next, on to draw command we will ask the player options S, R, A. Then we will write the over message. 
 
+    addPlayer() - Create a linked list data structure and add players to a list. This will serve as a waiting list to queue up the players who want to play. 
 
-    addPlayer()
+    p_recv() - is essentially responsible for recieving message from socket file descriptor and parsing into msg_t struct. Then the recieved message is read into msg_t structure's buf using the read function.  
 
+    gameEnd() - a function that will check for all sorts of game ending situations. Diagonals, columns, rows, and lastly a draw. 
 
-7.Send a BEGN message to each player, indicating their role and the name of their opponent. 
-8.Wait for MOVE messages from the players and update the game board accordingly.
-9.Check for win/draw conditions after each move and send the appropriate message to the players.
-If a player resigns, send an RSGN message to the other player and end the game.
-If both players agree to a draw, send a DRAW message and end the game.
-Close the connection and thread when the game is over.
+    updateBoard - will take in the role (X OR O), x and y coordinates. This will update and print the grid each time as a move is confirmed. 
+
+    checkName() - function that will traverse through the linked list of players to see if the name entered has already been entered. 
+ 
+    switchsock() - switch the sockets for 'draw' command. 
 
 
 
 ttt (Client)
-The ttt program will connect to the server (ttts), display the current state of the Tic-Tac-Toe grid to the player, receive and transmit moves made by the player, and report moves made by the other player.
-The client program (ttt.c) should connect to the server and display the current state of the board to the player. It should then prompt the player to make a move and send this move to the server. The client program should also listen for incoming messages from the server, including updates to the board state and notifications of game outcomes.
+    The ttt program will connect to the server (ttts), display the current state of the Tic-Tac-Toe grid to the player, receive and transmit moves made by the player, and report moves made by the other player.The client program (ttt.c) should connect to the server and display the current state of the board to the player. It should then prompt the player to make a move and send this move to the server. The client program should also listen for incoming messages from the server, including updates to the board state and notifications of game outcomes.
 
 
 1.Parse the command line arguments for the server's domain name and port number.DONE 
@@ -65,8 +65,6 @@ For the server (ttts.c), here are the basic steps:
 4.In the client thread, wait for the PLAY message from the client, which includes the player's name.DONE
 5.Add the player to a waiting list until another player connects.DONE
 6.Once two players are waiting, randomly select one to be X and the other to be O.DONE
-
-
 7.Send a BEGN message to each player, indicating their role and the name of their opponent. 
 8.Wait for MOVE messages from the players and update the game board accordingly.
 9.Check for win/draw conditions after each move and send the appropriate message to the players.
@@ -76,56 +74,14 @@ Close the connection and thread when the game is over.
 
 
 
-
-
-
-
-
-
-Protocol
-The game protocol will involve nine message types that will be exchanged between the client (ttt) and server (ttts):
-
-PLAY name: The client sends its name to the server to join the game.
-
-WAIT: The server informs the client to wait for another player to join.
-
-BEGN role name: The server notifies the client about the beginning of the game, assigns a role (X or O) to the client, and sends the name of the opponent player.
-
-MOVE role position: The client sends its move (position) to the server.
-
-MOVD role position board: The server notifies the client about the opponent's move (position) and updates the current state of the grid (board).
-
-INVL reason: The server informs the client that its move was invalid and provides a reason for the rejection.
-
-RSGN: The client sends a resignation request to the server.
-
-DRAW message: The client sends a draw suggestion to the server.
-
-OVER outcome reason: The server informs the clients about the outcome of the game (win, loss, or draw) and provides a reason for the end of the game.
-
-Message Format
-Messages will be broken into fields, where each field is separated by a vertical bar. The first field will always be a four-character code representing the message type. The second field will give the length of the remaining message in bytes, represented as a string containing a decimal integer in the range 0-255. Subsequent fields will be variable-length strings and will contain the relevant information for the message type. Messages will always end with a vertical bar, which will be used to detect improperly formatted messages.
-
-12345 localhost
-
-void startGame(Player* p1, Player* p2) {
-    // randomly select X and O
-    Player* x_player;
-    Player* o_player;
-    int r = rand() % 2;  // generate random number 0 or 1
-    if (r == 0) {
-        x_player = p1;
-        o_player = p2;
-    } else {
-        x_player = p2;
-        o_player = p1;
-    }
-
-    // send BEGN message to players
-    char msg1[MSG_SIZE];
-    snprintf(msg1, MSG_SIZE, "BEGN:X,%s", o_player->name);
-    send_msg(x_player->sock, BEGN, msg1);
-    char msg2[MSG_SIZE];
-    snprintf(msg2, MSG_SIZE, "BEGN:O,%s", x_player->name);
-    send_msg(o_player->sock, BEGN, msg2);
-}
+              if (strcmp(newboard, "INVL1") == 0)
+                {
+                    write(cursock, "INVL|29|That move is off the grid.|", 35);
+                    continue;
+                }
+                if (strcmp(newboard, "INVL2") == 0)
+                {
+                    write(cursock, "INVL|24|That space is occupied.|", 32);
+                    continue;
+                }
+     

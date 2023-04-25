@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
                     {
                         printf("Your opponent wishes to draw. Enter 'A' to accept or 'R' to reject.\n");
                         char choice;
-                        while (read(STDIN_FILENO, &choice, FIELDLEN) != 1 || (choice != 'R' && choice != 'A'))
+                        while (read(STDIN_FILENO, &choice, 1) ==-1 || (choice != 'R' && choice != 'A'))
                             printf("Invalid response, please try again.\n");
                         snprintf(buf, FIELDLEN, "DRAW|2|%c|", choice);
                         write(sockFD, buf, 9);
@@ -295,11 +295,13 @@ void turn(int sock, char role)
     char choice[5];
     char buf[FIELDLEN];
     printf("Enter 'MOVE' to make a move, 'RSGN' to resign, or 'DRAW' to draw.\n");
-    read(STDIN_FILENO, choice, FIELDLEN);
+    while(read(STDIN_FILENO, choice, FIELDLEN)!=5)
+        printf("Invalid Message\n");
+        
     choice[4] = '\0';
     if (strcmp(choice, "MOVE") == 0)
     {
-        printf("move\n");
+        // printf("move\n");
         char choice[4];
         printf("Enter the position of your move in this format 'x,y'.\n");
         while (read(STDIN_FILENO, choice, FIELDLEN) != 4 || !isdigit(choice[0]) || !isdigit(choice[0]))
