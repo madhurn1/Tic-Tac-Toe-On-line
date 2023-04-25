@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <pthread.h>
 // #include "protocol.c"
+#include <errno.h>
 
 // game Server
 #define QUEUE_SIZE 8
@@ -45,6 +46,7 @@ int p_recv(int sockFD, msg_t *msg);
 int field_count(char *);
 char *updateBoard(char role, int xCor, int yCor);
 void switchsock(int *sock, int sock1, int sock2);
+int gameEnd();
 
 volatile int active = 1;
 
@@ -152,8 +154,24 @@ int main(int argc, char *argv[])
         {
             perror("accept");
             free(con);
+<<<<<<< HEAD
             // TODO check for specific error conditions
             continue;
+=======
+
+            switch (errno)
+            {
+            case EINTR:
+                continue;
+
+            case EAGAIN:
+                continue;
+
+            default:
+                perror("accept");
+                continue;
+            }
+>>>>>>> d77abcfd4416b91cdd6f525cba73bd99d265e3c2
         }
         // printf("Connected\n");
         error = pthread_sigmask(SIG_BLOCK, &mask, NULL);
@@ -211,7 +229,7 @@ void *clientHandle(void *arg)
     // checking to seee if player name is inuse
 
     if (checkName(pass.fields[0]) == 1)
-        write(client_sock, "INVL|12|Name in use|", 19);
+        write(client_sock, "INVL|21|Name already in use.|", 29);
     else
         write(client_sock, "WAIT|0|", 7);
 
@@ -265,41 +283,79 @@ void *clientHandle(void *arg)
                 char *newboard = updateBoard(pass.fields[0][0], pass.fields[1][0] - '0' - 1, pass.fields[1][2] - '0' - 1);
                 if (strcmp(newboard, "INVL") == 0)
                 {
-                    write(client_sock, "INVL|14|Invalid move|", 21);
+                    write(cursock, "INVL|14|Invalid move|", 21);
                     continue;
                 }
 
-                snprintf(buf, FIELDLEN, "MOVD|12|%c|%s|", pass.fields[0][0], newboard);
-                write(sock1, buf, 20);
-                write(sock2, buf, 20);
+                if (gameEnd() == 2)
+                {
+                    write(cursock, "OVER|18|W||", 11);
+                    switchsock(&cursock, sock1, sock2);
+                    write(cursock, "OVER|18|L||", 11);
+                    break;
+                }
+
+                if (gameEnd() == 1)
+                {
+                    write(sock1, "OVER|23|D|The board is filled.|", 31);
+                    write(sock2, "OVER|23|D|The board is filled.|", 31);
+                    break;
+                }
+
+                bytes = snprintf(buf, FIELDLEN, "MOVD|12|%c|%s|", pass.fields[0][0], newboard);
+                write(sock1, buf, bytes);
+                write(sock2, buf, bytes);
                 switchsock(&cursock, sock1, sock2);
             }
 
             else if (strcmp(pass.code, "RSGN") == 0)
             {
-                bytes = snprintf(buf, FIELDLEN, "OVER|%ld|W|%s has resigned|", strlen(p1->pName) + 17, p1->pName);
-                write(client_sock, buf, bytes);
-                bytes = snprintf(buf, FIELDLEN, "OVER|%ld|L|%s has resigned|", strlen(p1->pName) + 17, p1->pName);
-                write(client_sock, buf, bytes);
+                if (cursock == sock1)
+                {
+                    bytes = snprintf(buf, FIELDLEN, "OVER|%ld|W|%s has resigned.|", strlen(player1) + 17, player1);
+                    write(sock2, buf, bytes);
+                    bytes = snprintf(buf, FIELDLEN, "OVER|%ld|L|%s has resigned.|", strlen(player1) + 17, player1);
+                    write(sock1, buf, bytes);
+                }
+                else
+                {
+                    bytes = snprintf(buf, FIELDLEN, "OVER|%ld|W|%s has resigned.|", strlen(player2) + 17, player2);
+                    write(sock1, buf, bytes);
+                    bytes = snprintf(buf, FIELDLEN, "OVER|%ld|L|%s has resigned.|", strlen(player2) + 17, player2);
+                    write(sock2, buf, bytes);
+                }
                 break;
             }
 
             else if (strcmp(pass.code, "DRAW") == 0)
             {
                 if (pass.fields[0][0] == 'S')
-                    write(client_sock, "DRAW|2|S|", 9);
+                {
+                    switchsock(&cursock, sock1, sock2);
+                    write(cursock, "DRAW|2|S|", 9);
+                }
                 if (pass.fields[0][0] == 'R')
-                    write(client_sock, "DRAW|2|R|", 9);
+                {
+                    switchsock(&cursock, sock1, sock2);
+                    write(cursock, "DRAW|2|R|", 9);
+                }
                 if (pass.fields[0][0] == 'A')
                 {
-                    write(client_sock, "OVER|37|D|Both players have decided to draw|", 44);
-                    write(client_sock, "OVER|37|D|Both players have decided to draw|", 44);
+                    if (cursock == sock1)
+                        bytes = snprintf(buf, FIELDLEN, "OVER|%ld|D|%s has agreed to draw.|", strlen(player1) + 23, player1);
+
+                    else
+                        bytes = snprintf(buf, FIELDLEN, "OVER|%ld|D|%s has agreed to draw.|", strlen(player2) + 23, player2);
+
+                    write(sock2, buf, bytes);
+                    write(sock1, buf, bytes);
                     break;
                 }
             }
         }
     }
-    close(client_sock);
+    close(sock1);
+    close(sock2);
     pthread_exit(NULL);
 }
 
@@ -481,7 +537,7 @@ char *updateBoard(char role, int xCor, int yCor)
     if (board[xCor][yCor] == '.')
         board[xCor][yCor] = role;
     else
-        return NULL;
+        return "INVL";
 
     static char stringBoard[10];
     int count = 0;
@@ -492,4 +548,35 @@ char *updateBoard(char role, int xCor, int yCor)
 
     printf("%s\n", stringBoard);
     return stringBoard;
+}
+
+int gameEnd()
+{
+    // check rows
+    for (int i = 0; i < 3; i++)
+        if (board[i][0] != '.' && board[i][0] == board[i][1] && board[i][1] == board[i][2])
+            return 2;
+
+    // check columns
+    for (int j = 0; j < 3; j++)
+        if (board[0][j] != '.' && board[0][j] == board[1][j] && board[1][j] == board[2][j])
+            return 2;
+    // check diagonals
+    if (board[0][0] != '.' && board[0][0] == board[1][1] && board[1][1] == board[2][2])
+        return 2;
+
+    if (board[0][2] != '.' && board[0][2] == board[1][1] && board[1][1] == board[2][0])
+        return 2;
+
+    // check for tie
+    int count = 0;
+    for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+            if (board[i][j] != '.')
+                count++;
+
+    if (count == 9)
+        return 1;
+
+    return 0;
 }
