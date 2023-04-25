@@ -1,4 +1,4 @@
-PROGRAMS = ttts ttt protocol test
+PROGRAMS = ttts ttt
 CFLAGS = -g -std=c99 -Wall -Wvla -Werror -fsanitize=address,undefined -pthread
 
 all: $(PROGRAMS)
