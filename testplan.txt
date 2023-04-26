@@ -80,7 +80,7 @@ MOVE 2,1
 MOVE 3,2
 MOVE 1,3
 MOVE 1,1
-----------------------------------------------------------------
+----------------------------------------------------------------------------
 //Draw(accept draw) 
 + trying to take a spot that has already been taken
 + trying to move marker to a cell outside of the grid. Example: 1,4
@@ -101,7 +101,7 @@ MOVE 1,3
 MOVE 1,1
 MOVE 3,4
 DRAW
---------------------------------------------------------------------
+-----------------------------------------------------------------------------
 Testing: Draw (reject) and RSGN
 Outcome: Client 2 wins by RSGN
 breakdown: Client 2 rejects client's 1s attempt to DRAW. 
@@ -115,7 +115,7 @@ RSG
 Client 2
 Play Amani
 R(reject)
----------------------------------------------------------------------
+-----------------------------------------------------------------------------
 Testing: Invalid INPUTS and Incorrect Formats
 Outcome: Invalid response messages to each one respectively
 Various edge cases being checked, where the client is inserting responses that 
@@ -131,7 +131,7 @@ Client 2
 Play Amani
 RSGN abcd
 DRAW
---------------------------------------------------------------------
+------------------------------------------------------------------------------
 Testing: When client puts a identical name as someone who is already in the game. 
 
 Outcome: Name already in use. Enter a new name: prompt appears when the same name is entered 
@@ -144,7 +144,7 @@ Client 2
 Play Madhur
 Play Amani
 
----------------------------------------------------------------------
+------------------------------------------------------------------------------
 MULTITHREADING (Concurrent games): 
 
 Outcome: Concurrent Games between Madhur and Amani. Madhur is the winner
