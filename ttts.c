@@ -9,7 +9,6 @@
 #include <netdb.h>
 #include <signal.h>
 #include <pthread.h>
-// #include "protocol.c"
 #include <errno.h>
 
 // game Server
