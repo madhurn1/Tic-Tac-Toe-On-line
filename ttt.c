@@ -83,7 +83,6 @@ int main(int argc, char *argv[])
 
     //**********************************************************************************
     // char playerName[NAME_SIZE];
-    // work needs to be done from here... message 3 confusion.
 
     freeaddrinfo(info_list);
     if (info == NULL)
