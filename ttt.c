@@ -6,7 +6,6 @@
 #include <netdb.h>
 #include <string.h>
 #include <sys/select.h>
-// #include "protocol.c"
 #include <errno.h>
 #include <ctype.h>
 #include <signal.h>
@@ -124,7 +123,7 @@ int main(int argc, char *argv[])
 
     if (strcmp(pass.code, "WAIT") == 0)
     {
-        printf("Wait for your opponent to connect...\n");
+        printf("Waiting for opponent to connect...\n");
         if (p_recv(sockFD, &pass) > 0 && strcmp(pass.code, "BEGN") == 0)
         {
             role = pass.fields[0][0];

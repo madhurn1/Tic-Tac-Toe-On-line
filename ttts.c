@@ -9,7 +9,6 @@
 #include <netdb.h>
 #include <signal.h>
 #include <pthread.h>
-// #include "protocol.c"
 #include <errno.h>
 
 // game Server
@@ -41,6 +40,11 @@ char *updateBoard(char (*board)[3], char role, int xCor, int yCor);
 void switchsock(int *sock, int sock1, int sock2);
 int gameEnd(char (*board)[3]);
 
+int socknum = 0;
+int threadnum = 0;
+int socks[50];
+struct connection_data *threads[50];
+
 volatile int active = 1;
 
 void handler(int signum)
@@ -70,10 +74,15 @@ void signal_handler(int sig)
 {
     if (sig == SIGINT)
     {
-        close(sock);
-        // free(con);
-        printf("Exiting...\n");
-        exit(0);
+        printf("\nShutting down server...\n");
+        active = 0;
+        for (int i = 0; i < threadnum; i++)
+            free(threads[i]);
+
+        for (int i = 0; i < socknum; i++)
+            close(socks[i]);
+
+        exit(EXIT_SUCCESS);
     }
 }
 
@@ -131,6 +140,8 @@ int main(int argc, char *argv[])
         // if we got this far, we have opened the socket
         break;
     }
+    socks[socknum++] = sock;
+
     freeaddrinfo(info_list);
 
     if (info == NULL)
@@ -176,6 +187,7 @@ int main(int argc, char *argv[])
                 continue;
             }
         }
+        threads[threadnum++] = con;
         printf("Connected\n");
         error = pthread_sigmask(SIG_BLOCK, &mask, NULL);
         if (error != 0)
@@ -184,7 +196,7 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
         pthread_t tid;
-        error = pthread_create(&tid, NULL, clientHandle, &con->fd);//check maybe error
+        error = pthread_create(&tid, NULL, clientHandle, &con->fd); // check maybe error
         if (error != 0)
         {
             fprintf(stderr, "pthread_create: %s\n", strerror(error));
@@ -200,7 +212,7 @@ int main(int argc, char *argv[])
         error = pthread_sigmask(SIG_UNBLOCK, &mask, NULL);
         if (error != 0)
         {
-            fprintf(stderr, "sigmask: %s\n", strerror(error));  
+            fprintf(stderr, "sigmask: %s\n", strerror(error));
             exit(EXIT_FAILURE);
         }
     }
@@ -292,7 +304,7 @@ void *clientHandle(void *arg)
             if (strcmp(pass.code, "MOVE") == 0)
             {
                 char *newboard = updateBoard(board, pass.fields[0][0], pass.fields[1][0] - '0' - 1, pass.fields[1][2] - '0' - 1);
-             
+
                 if (strcmp(newboard, "INVL1") == 0)
                 {
                     write(cursock, "INVL|29|That move is off the grid.|", 35);
@@ -303,7 +315,6 @@ void *clientHandle(void *arg)
                     write(cursock, "INVL|24|That space is occupied.|", 32);
                     continue;
                 }
-                
 
                 if (gameEnd(board) == 2)
                 {
