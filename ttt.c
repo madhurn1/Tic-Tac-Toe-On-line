@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
                     {
                         printf("Your opponent wishes to draw. Enter 'A' to accept or 'R' to reject.\n");
                         char choice[FIELDLEN];
-                        while (read(STDIN_FILENO, choice, FIELDLEN) != 2 || !(choice[0] == 'R' || choice[0] != 'A'))
+                        while (read(STDIN_FILENO, choice, FIELDLEN) != 2 || !(choice[0] == 'R' || choice[0] == 'A'))
                             printf("Invalid response, please try again.\n");
                         choice[1] = '\0';
                         snprintf(buf, FIELDLEN, "DRAW|2|%c|", choice[0]);

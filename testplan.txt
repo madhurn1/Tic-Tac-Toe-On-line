@@ -1,5 +1,6 @@
-INPUTS testing ...
+INPUTS testing ...TESTPLAN + TESTCASES 
 
+----------------------------------------------------------------------
 //testing diagonol win
 Outcome: Client 1 wins
 
@@ -130,31 +131,67 @@ Client 2
 Play Amani
 RSGN abcd
 DRAW
----------------------------------------------------------------------
-MULTITHREADING (Concurrent games): 
+--------------------------------------------------------------------
+Testing: When client puts a identical name as someone who is already in the game. 
+
+Outcome: Name already in use. Enter a new name: prompt appears when the same name is entered 
 
 Client 1 
 Play Madhur
+RSGN
 
+Client 2
+Play Madhur
+Play Amani
+
+---------------------------------------------------------------------
+MULTITHREADING (Concurrent games): 
+
+Outcome: Concurrent Games between Madhur and Amani. Madhur is the winner
+Game # 2 : Joe vs Beckham - Tie via draw
+
+Client 1 
+Play Madhur
+MOVE 2,2
+MOVE 1,3
+MOVE 3,1
 
 Client 2
 Play Amani
+MOVE 1,1
+MOVE 3,2
 
 Client 3
 Play Joe
+MOVE 3,3
+MOVE 3,1
+A
 
 client 4
 Play Beckham
-
+MOVE 2,1
+DRAW
 ---------------------------------------------------------------------
+Testing : MULTITHREADING #2 Concurrent games
 
+Client 1 
+Play Madhur
+MOVE 2,2
+MOVE 3,1
+MOVE 1,3
 
+Client 2
+Play Amani
+MOVE 1,1
+MOVE 3,3
 
+Client 3
+Play Robert
+MOVE 2,1
+DRAW
+MOVE 1,1
 
-ISSUES or suggestions to fix: 
-1. line 298 ttt.c - EX: Move 1,2 - it should ask to input something that is either a move,resign, or draw. 
-2. MULTITHREADING GRID - EVERYONE PLAYING ON THE SAME GRID 
-3. CHECK FOR A DRAW WITHOUT TYPING DRAW
-4. When you run back to back games - its struggling to find valid command. Does not work 
-6. Wait message by server??
-
+client 4
+Play Mcdaniel
+MOVE 1,3
+R

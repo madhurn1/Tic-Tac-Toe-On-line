@@ -15,15 +15,8 @@
 // game Server
 #define QUEUE_SIZE 8
 #define FIELDLEN 256
-#define BOARD [3][3]
-
 // global mutex to ensure thread-safe access to the list of player names
 pthread_mutex_t player_list_lock = PTHREAD_MUTEX_INITIALIZER;
-
-char board[3][3] = {
-    {'.', '.', '.'},
-    {'.', '.', '.'},
-    {'.', '.', '.'}};
 
 typedef struct PlayerNode
 {
@@ -44,9 +37,9 @@ typedef struct msg
 
 int p_recv(int sockFD, msg_t *msg);
 int field_count(char *);
-char *updateBoard(char role, int xCor, int yCor);
+char *updateBoard(char (*board)[3], char role, int xCor, int yCor);
 void switchsock(int *sock, int sock1, int sock2);
-int gameEnd();
+int gameEnd(char (*board)[3]);
 
 volatile int active = 1;
 
@@ -69,6 +62,20 @@ void send_msg(int sock, char *type, char *msg);
 int checkName(char *name);
 void addPlayer(char *name, int sock);
 void install_handlers(sigset_t *mask);
+void signal_handler(int sig);
+
+int sock;
+
+void signal_handler(int sig)
+{
+    if (sig == SIGINT)
+    {
+        close(sock);
+        // free(con);
+        printf("Exiting...\n");
+        exit(0);
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -84,8 +91,7 @@ int main(int argc, char *argv[])
     install_handlers(&mask);
     //**********************************************************************************************
     struct addrinfo hint, *info_list, *info;
-    int error, sock;
-    struct connection_data *con;
+    int error;
 
     // initialize hints
     memset(&hint, 0, sizeof(struct addrinfo));
@@ -134,10 +140,12 @@ int main(int argc, char *argv[])
     }
     // When a client connects, accept the connection and create a new thread to handle the client.
 
+    signal(SIGINT, signal_handler);
+
     while (active)
     {
         // holds the address information of the client that connects to the server.
-        con = (struct connection_data *)malloc(sizeof(struct connection_data));
+        struct connection_data *con = (struct connection_data *)malloc(sizeof(struct connection_data));
         // struct sockaddr_storage client_addr;
         con->addr_len = sizeof(struct sockaddr_storage);
 
@@ -197,6 +205,7 @@ int main(int argc, char *argv[])
         }
     }
     // shutting down
+    printf("Shutting Down\n");
     close(sock);
     return 1;
 }
@@ -217,17 +226,19 @@ void *clientHandle(void *arg)
     struct msg pass;
     pass.len = 0;
     pass.num_fields = 0;
+    int val;
 
-    if (p_recv(client_sock, &pass) <= 0)
+    while ((val = p_recv(client_sock, &pass) > 0) && checkName(pass.fields[0]))
+        write(client_sock, "INVL|21|Name already in use.|", 29);
+
+    if (val == 0 || val == -1)
+    {
         close(client_sock);
-
+        pthread_exit(NULL);
+    }
     // checking to seee if player name is inuse
 
-    if (checkName(pass.fields[0]) == 1)
-        write(client_sock, "INVL|21|Name already in use.|", 29);
-    else
-        write(client_sock, "WAIT|0|", 7);
-
+    write(client_sock, "WAIT|0|", 7);
     // adding player to linked list structure.
     addPlayer(pass.fields[0], client_sock);
 
@@ -269,13 +280,19 @@ void *clientHandle(void *arg)
     bytes = snprintf(buf, FIELDLEN, "BEGN|%ld|%c|%s|", strlen(player1) + 3, role2, player1);
     write(sock2, buf, bytes);
     int cursock = sock1;
+    char board[][3] = {
+        {'.', '.', '.'},
+        {'.', '.', '.'},
+        {'.', '.', '.'}};
+
     while (1)
     {
         if (p_recv(cursock, &pass) > 0)
         {
             if (strcmp(pass.code, "MOVE") == 0)
             {
-                char *newboard = updateBoard(pass.fields[0][0], pass.fields[1][0] - '0' - 1, pass.fields[1][2] - '0' - 1);
+                char *newboard = updateBoard(board, pass.fields[0][0], pass.fields[1][0] - '0' - 1, pass.fields[1][2] - '0' - 1);
+             
                 if (strcmp(newboard, "INVL1") == 0)
                 {
                     write(cursock, "INVL|29|That move is off the grid.|", 35);
@@ -286,8 +303,9 @@ void *clientHandle(void *arg)
                     write(cursock, "INVL|24|That space is occupied.|", 32);
                     continue;
                 }
-     
-                if (gameEnd() == 2)
+                
+
+                if (gameEnd(board) == 2)
                 {
                     write(cursock, "OVER|18|W||", 11);
                     switchsock(&cursock, sock1, sock2);
@@ -295,7 +313,7 @@ void *clientHandle(void *arg)
                     break;
                 }
 
-                if (gameEnd() == 1)
+                if (gameEnd(board) == 1)
                 {
                     write(sock1, "OVER|23|D|The board is filled.|", 31);
                     write(sock2, "OVER|23|D|The board is filled.|", 31);
@@ -352,6 +370,12 @@ void *clientHandle(void *arg)
                     break;
                 }
             }
+        }
+        else
+        {
+            close(sock1);
+            close(sock2);
+            pthread_exit(NULL);
         }
     }
     close(sock1);
@@ -428,8 +452,6 @@ int p_recv(int sockFD, msg_t *msg)
     int fieldcount;
     int size;
     int bytes_read = read(sockFD, msg->buf + msg->len, FIELDLEN - msg->len);
-    printf("BUF: %s\n", msg->buf);
-
     if (bytes_read == -1)
     {
         perror("read");
@@ -441,8 +463,6 @@ int p_recv(int sockFD, msg_t *msg)
         return 0;
 
     msg->len += bytes_read;
-
-    printf("%d %d\n", msg->len, bytes_read);
     // check for complete message
     for (int i = msgend; i < msg->len; i++)
     {
@@ -459,7 +479,6 @@ int p_recv(int sockFD, msg_t *msg)
                 strncpy(msg->code, msg->buf + msgend, 4);
                 msg->code[4] = '\0';
                 fieldcount = field_count(msg->code);
-                printf("CODE: %s, FIELDS: %d\n", msg->code, fieldcount);
             }
             else if (msg->num_fields == 1)
             {
@@ -475,8 +494,6 @@ int p_recv(int sockFD, msg_t *msg)
                     fprintf(stderr, "error: invalid message size\n");
                     return -1;
                 }
-
-                printf("SIZE: %d\n", size);
             }
             else
             {
@@ -486,7 +503,6 @@ int p_recv(int sockFD, msg_t *msg)
                 strncpy(field, msg->buf + msgend, i - msgend);
                 field[i - msgend] = '\0';
                 strcpy(msg->fields[msg->num_fields - 2], field);
-                printf("FIELD: %s\n", field);
             }
             msgend = i + 1;
             msg->num_fields++;
@@ -495,9 +511,6 @@ int p_recv(int sockFD, msg_t *msg)
         if (fieldcount != 0 && msg->num_fields == fieldcount)
             break;
     }
-
-    printf("LEN: %d\n", msg->len);
-    printf("FIELDS: %d\n", msg->num_fields);
 
     // check for improperly formatted message
     if (msg->buf[msg->len - 1] != '|')
@@ -512,6 +525,12 @@ int p_recv(int sockFD, msg_t *msg)
     memmove(msg->buf, msg->buf + msgend, leftover_length);
     msg->buf[leftover_length] = '\0';
     msg->len = leftover_length;
+
+    printf("%s|%d|", msg->code, size);
+    for (int i = 0; i < msg->num_fields - 2; i++)
+        printf("%s|", msg->fields[i]);
+    printf("\n");
+
     msg->num_fields = 0;
     return 1;
 }
@@ -528,9 +547,8 @@ int field_count(char *type)
     return 0;
 }
 
-char *updateBoard(char role, int xCor, int yCor)
+char *updateBoard(char (*board)[3], char role, int xCor, int yCor)
 {
-    printf("%d,%d\n", xCor, yCor);
     if (xCor > 2 || xCor < 0 || yCor > 2 || yCor < 0)
         return "INVL1";
 
@@ -546,11 +564,10 @@ char *updateBoard(char role, int xCor, int yCor)
         for (int j = 0; j < 3; j++)
             stringBoard[count++] = board[i][j];
 
-    printf("%s\n", stringBoard);
     return stringBoard;
 }
 
-int gameEnd()
+int gameEnd(char (*board)[3])
 {
     // check rows
     for (int i = 0; i < 3; i++)
